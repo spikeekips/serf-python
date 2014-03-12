@@ -146,7 +146,8 @@ The callbacks will be executed by order.
 
 #### Streaming Response
 
-For streaming command like `stream` or `monitor` you can use `watch`,
+For streaming command like `stream` or `monitor` you can use `watch`, you can
+find the available `LogLevel` at https://github.com/hashicorp/serf/blob/a7d854a1b598975f687771e8975d32c8dfbc8319/command/agent/log_levels.go#L12 .
 
 ```python
 >>> def _callback (response, ) :
