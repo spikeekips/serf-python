@@ -18,7 +18,7 @@ or from source.
 $ git clone git@github.com:spikeekips/serf-python.git
 $ cd serf-python
 
-$ git checkout v0.1 
+$ git checkout v0.1
 
 $ python setup.py install
 ```
@@ -52,7 +52,7 @@ To connect to your `serf` agent,
 ```
 
 The above example, ```127.0.0.1:7373,127.0.0.1:7374``` is the two agent addresses,
- 
+
 * ```127.0.0.1:7373```: host: localhost, port: 7373
 * ```127.0.0.1:7374```: host: localhost, port: 7374
 
@@ -154,7 +154,7 @@ find the available `LogLevel` at https://github.com/hashicorp/serf/blob/a7d854a1
 >>> def _callback (response, ) :
 ...     if not response.is_sucess :
 ...         raise ValueError(response.error, )
-... 
+...
 ...     print response.body
 
 >>> _client.stream().add_callback(_callback, ).watch()
@@ -212,7 +212,7 @@ None
 ```
 
 > NOTE:
-> 
+>
 > &nbsp;&nbsp;&nbsp;&nbsp;In `serf`, the payload size has limitation, you can send event message up to 1KB, see 'Custom Event Limitations' section in http://www.serfdom.io/intro/getting-started/user-events.html .
 > To manually tune the payload size limit, see `serf.constant.PAYLOAD_SIZE_LIMIT`.
 
@@ -283,13 +283,13 @@ If the `Num` is less than 1 in the response body, `is_success` will be `False`.
 ```python
 >>> def _callback_stream (response, ) :
 ...     print '> got stream response.'
-...     
+...
 ...     print 'response:', response
 ...     print 'seq:', response.seq
 ...     print 'error:', (response.error, )
 ...     print 'header:',
 ...     pprint.pprint(response.header, )
-...     
+...
 ...     print 'events:'
 ...     if response.body :
 ...         for _event in response.body :
@@ -388,10 +388,22 @@ If you disconnect after getting the responses,
 
 Without `wait=True`, it will just close the connection before sending requests.
 
+
+### Use `with` Statement For One Time Request
+
+```python
+>>> with serf.Client('127.0.0.1:7373,127.0.0.1:7374', ) as _client :
+...     _client.members().request
+```
+
+The outside of `with` block, the `_client` will be automatically be disconnect
+after getting response for `members`.
+
+
 ## Todo and Next...
 
 * support the missing commands, `tags`, `auth`, etc.
 * support various environment, Django, flask, etc.
-* support context manager.
+* ~~support context manager.~~
 
 

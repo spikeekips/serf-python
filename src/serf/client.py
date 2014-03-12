@@ -18,6 +18,7 @@ class Client (threading.local, ) :
                     hosts=None,
                     ipc_version=constant.DEFAULT_IPC_VERSION,
                     auto_reconnect=False,
+                    connection_class=None,
                 ) :
         _hosts = list()
         if not hosts :
@@ -45,11 +46,24 @@ class Client (threading.local, ) :
             if not _hosts :
                 raise ValueError('no `hosts` found.', )
 
-        self._conn = connection.Connection(_hosts, auto_reconnect=auto_reconnect, )
+        if connection_class is None :
+            connection_class = connection.Connection
+
+        self._conn = connection_class(_hosts, auto_reconnect=auto_reconnect, )
         self.ipc_version = ipc_version
         self.seq = 0
 
         self._initialize()
+
+    def __enter__ (self, ) :
+        self.connect()
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback, ) :
+        self.disconnect()
+
+        return
 
     def _initialize (self, requests=None, reset_seq=False, ) :
         self._got_first_stream_response = False
@@ -77,7 +91,6 @@ class Client (threading.local, ) :
             return self
 
         self._conn.disconnect()
-        self._watcher.shutdown()
 
         return
 
