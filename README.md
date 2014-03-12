@@ -1,4 +1,5 @@
-# serf client for python
+# serf client for python [![Build Status](https://travis-ci.org/spikeekips/serf-python.png?branch=master)](https://travis-ci.org/spikeekips/serf-python)
+
 
 `serf-python` is the client for `serf` for python(python3.x not yet).
 
@@ -390,7 +391,7 @@ Without `wait=True`, it will just close the connection before sending requests.
 ## Todo and Next...
 
 * support the missing commands, `tags`, `auth`, etc.
-
 * support various environment, Django, flask, etc.
+* support context manager.
 
 
