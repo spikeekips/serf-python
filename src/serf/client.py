@@ -258,9 +258,6 @@ class Client (threading.local, ) :
         _response_class = None
         while True :
             try:
-                if not _data.startswith(constant.DATA_BEGIN_STRING, ) :
-                    raise StopIteration
-
                 _parsed = self._unpacker.next()
                 if _header is not None :
                     if set(_parsed.keys()) == set(['Seq', 'Error', ], ) : # it's header
