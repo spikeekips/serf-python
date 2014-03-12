@@ -21,7 +21,7 @@ class Client (threading.local, ) :
                 ) :
         _hosts = list()
         if not hosts :
-            _hosts = ((constant.DEFAULT_HOST, constant.DEFAULT_PORT, ), )
+            _hosts = [(constant.DEFAULT_HOST, constant.DEFAULT_PORT, ), ]
         else :
             for i in filter(string.strip, hosts.split(','), ) :
                 _host = map(
@@ -92,7 +92,7 @@ class Client (threading.local, ) :
         return _func
 
     def __call__ (self, command, **body) :
-        _request = REQUEST_HANDLER.get(command, )(**body).check(self, )
+        _request = get_request_class(command, )(**body).check(self, )
 
         self.request_by_request(_request, )
 
@@ -118,7 +118,7 @@ class Client (threading.local, ) :
         return
 
     def _request_handshake (self, ) :
-        _request = REQUEST_HANDLER.get('handshake', )(
+        _request = get_request_class('handshake', )(
                 Version=self.ipc_version,
             ).check(self, ).add_callback(self._callback_handshake, )
 
@@ -126,7 +126,7 @@ class Client (threading.local, ) :
         return self._get_response().callback().is_success
 
     def _request_members (self, *callbacks) :
-        _request = REQUEST_HANDLER.get('members', )(
+        _request = get_request_class('members', )(
             ).check(self, )
 
         if callbacks is not None :
@@ -300,6 +300,10 @@ class Client (threading.local, ) :
                 break
 
         return _response_class(_request, _header, _body, )
+
+
+def get_request_class (command, ) :
+    return REQUEST_HANDLER.get(command, )
 
 
 
