@@ -388,5 +388,8 @@ Without `wait=True`, it will just close the connection before sending requests.
 
 ## Todo and Next...
 
+* support the missing commands, `tags`, `auth`, etc.
+
 * support various environment, Django, flask, etc.
+
 
