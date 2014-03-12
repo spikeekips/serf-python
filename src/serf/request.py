@@ -8,21 +8,50 @@ from . import constant
 class BaseRequest (object ) :
     command = None
 
+    must_be_argument = tuple()
+    optional_argument = tuple()
+
     def __init__ (self, **body) :
         self.seq = None
         self.body = body
         self.callbacks = list()
 
-        self._is_checked = False
+        self.is_checked = False
+
+    def _get_is_checked (self, ) :
+        return self._is_checked
+
+    def _set_is_checked (self, b, ) :
+        self._is_checked = b
+
+    is_checked = property(_get_is_checked, _set_is_checked, )
 
     def check (self, client, ) :
         self.do_check(client, )
 
-        self._is_checked = True
+        self.is_checked = True
 
         return self
 
     def do_check (self, client, ) :
+        # check argument
+        _all_argument = set(self.must_be_argument) | set(self.optional_argument, )
+        if not _all_argument :
+            if self.body :
+                raise _exceptions.InvalidRequest('request body be empty', )
+
+        else :
+            if not hasattr(self.body, 'keys', ) or not callable(self.body.keys, ) :
+                raise _exceptions.InvalidRequest('invalid request body', )
+
+            # check whether unknown arguments exist
+            if set(self.body.keys()) - set(_all_argument) :
+                raise _exceptions.InvalidRequest('unknown argument found in request', )
+
+            # check must be arguments exist
+            if set(self.must_be_argument, ) - set(self.body.keys()) :
+                raise _exceptions.InvalidRequest('some argument missing in request', )
+
         return
 
     def __getstate__ (self, ) :
@@ -41,17 +70,25 @@ class BaseRequest (object ) :
                 str(self.body) if self.body else '',
             )
 
+    @classmethod
+    def dumps (cls, command, seq, body, ) :
+        return msgpack.packb(dict(
+                Command=command,
+                Seq=seq,
+            ), ) + (msgpack.packb(body, ) if body else '')
+
     def __str__ (self, ) :
-        if not self._is_checked :
+        if not self.is_checked :
             raise _exceptions.UncheckedRequest
 
         if self.seq is None :
             self.seq = 0
 
-        return msgpack.packb(dict(
-                Command=self.command.replace('_', '-', ),
-                Seq=self.seq,
-            ), ) + (msgpack.packb(self.body, ) if self.body else '')
+        return self.dumps(
+                self.command.replace('_', '-', ),
+                self.seq,
+                self.body,
+            )
 
     @property
     def is_stream (self, ) :
@@ -67,9 +104,14 @@ class RequestHandshake (BaseRequest, ) :
     """
     {"Version": 1}
     """
+
+    must_be_argument = ('Version', )
+
     def do_check (self, client, ) :
         if 'Version' not in self.body :
             self.body['Version'] = client.ipc_version
+
+        super(RequestHandshake, self).do_check(client, )
 
         return
 
@@ -78,15 +120,16 @@ class RequestEvent (BaseRequest, ) :
     """
         {"Name": "foo", "Payload": "test payload", "Coalesce": true}
     """
-    _available_body_parameters = (
+    must_be_argument = (
             'Name',
             'Payload',
+        )
+    optional_argument = (
             'Coalesce',
         )
 
     def do_check (self, client, ) :
-        if set(self.body.keys()) - set(self._available_body_parameters) :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestEvent, self).do_check(client, )
 
         try :
             self.body['Name']
@@ -100,7 +143,7 @@ class RequestEvent (BaseRequest, ) :
         if type(self.body.get('Payload', ), ) not in (str, unicode, ) :
             raise _exceptions.InvalidRequest('invalid request, `Payload` must be str.', )
 
-        if type(self.body.get('Coalesce', ), ) not in (bool, ) :
+        if 'Coalesce' in self.body and type(self.body.get('Coalesce', ), ) not in (bool, ) :
             raise _exceptions.InvalidRequest('invalid request, `Coalesce` must be bool.', )
 
         # check payload
@@ -119,13 +162,12 @@ class RequestStream (BaseRequest, ) :
     """
         {"Type": "member-join,user:deploy"}`
     """
-    _available_body_parameters = (
+    must_be_argument = (
             'Type',
         )
 
     def do_check (self, client, ) :
-        if set(self.body.keys()) - set(self._available_body_parameters) :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestStream, self).do_check(client, )
 
         try :
             self.body['Type']
@@ -143,11 +185,8 @@ class RequestStream (BaseRequest, ) :
 
 
 class RequestLeave (BaseRequest, ) :
-    _available_body_parameters = ()
-
     def do_check (self, client, ) :
-        if self.body.keys() :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestLeave, self).do_check(client, )
 
         return
 
@@ -156,13 +195,12 @@ class RequestForceLeave (BaseRequest, ) :
     """
         {"Node": "failed-node-name"}
     """
-    _available_body_parameters = (
+    must_be_argument = (
             'Node',
         )
 
     def do_check (self, client, ) :
-        if set(self.body.keys()) - set(self._available_body_parameters) :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestForceLeave, self).do_check(client, )
 
         try :
             self.body['Node']
@@ -179,13 +217,12 @@ class RequestMonitor (BaseRequest, ) :
     """
         {"LogLevel": "DEBUG"}
     """
-    _available_body_parameters = (
+    must_be_argument = (
             'LogLevel',
         )
 
     def do_check (self, client, ) :
-        if set(self.body.keys()) - set(self._available_body_parameters) :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestMonitor, self).do_check(client, )
 
         try :
             self.body['LogLevel']
@@ -202,13 +239,12 @@ class RequestStop (BaseRequest, ) :
     """
         {"Stop": 50}
     """
-    _available_body_parameters = (
+    must_be_argument = (
             'Stop',
         )
 
     def do_check (self, client, ) :
-        if set(self.body.keys()) - set(self._available_body_parameters) :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestStop, self).do_check(client, )
 
         try :
             self.body['Stop']
@@ -225,14 +261,13 @@ class RequestJoin (BaseRequest, ) :
     """
         {"Existing": ["192.168.0.1:6000", "192.168.0.2:6000"], "Replay": false}
     """
-    _available_body_parameters = (
+    must_be_argument = (
             'Existing',
             'Replay',
         )
 
     def do_check (self, client, ) :
-        if set(self.body.keys()) - set(self._available_body_parameters) :
-            raise _exceptions.InvalidRequest('invalid request', )
+        super(RequestJoin, self).do_check(client, )
 
         try :
             self.body['Existing']
