@@ -44,10 +44,10 @@ To connect to your `serf` agent,
 >>> _client = serf.Client('127.0.0.1:7373,127.0.0.1:7374', auto_reconnect=False, )
 ```
 
-The above example, ```127.0.0.1:7373,127.0.0.1:7374'`` is the two agent addresses,
+The above example, ```127.0.0.1:7373,127.0.0.1:7374``` is the two agent addresses,
  
 * ```127.0.0.1:7373```: host: localhost, port: 7373
-* ```127.0.0.1:7374'``: host: localhost, port: 7374
+* ```127.0.0.1:7374```: host: localhost, port: 7374
 
 You can address the multiple agent addresses as long as you want, just seperates by comma(,), so it will automatically try to reconnect to the next another agent address when accidentally lose connection. This feature will be enabled by `auto_reconnect=True` option, default is `False`.
 
