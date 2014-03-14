@@ -27,7 +27,6 @@ class Connection (object, ) :
 
         log.debug('will connect to %s' % hosts, )
 
-        self._all_members = list()
         self.members = hosts[:]
         self._timeout = timeout
         self._auto_reconnect = auto_reconnect
@@ -48,11 +47,6 @@ class Connection (object, ) :
 
     def _set_members (self, m, ) :
         self._members = m
-        for i in self._members :
-            if i in self._all_members :
-                continue
-
-            self._all_members.append(i, )
 
     def _get_timeout (self, ) :
         return self._timeout
@@ -80,11 +74,10 @@ class Connection (object, ) :
             raise _exceptions.ConnectionError('no members to connect', )
 
         _members = self.members[:]
-        _sock = self._connection(_members, )
+        _sock = self._connection(self.members, )
 
         if _sock is None and self._once_connected :
             if self._auto_reconnect :
-                _members = self._all_members[:]
                 _n = 0
                 while True :
                     if _n >= constant.CONNECTION_RETRY :
@@ -123,6 +116,7 @@ class Connection (object, ) :
             except _exceptions.ConnectionError, e :
                 try :
                     self.members.remove(_host, )
+                    self.members.append(_host, )
                 except ValueError :
                     pass
 
