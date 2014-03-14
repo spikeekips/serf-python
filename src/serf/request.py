@@ -131,12 +131,6 @@ class RequestEvent (BaseRequest, ) :
     def do_check (self, client, ) :
         super(RequestEvent, self).do_check(client, )
 
-        try :
-            self.body['Name']
-            self.body['Payload']
-        except KeyError :
-            raise _exceptions.InvalidRequest('invalid request, some key is missing.', )
-
         if type(self.body.get('Name', ), ) not in (str, unicode, ) :
             raise _exceptions.InvalidRequest('invalid request, `Name` must be str.', )
 
@@ -169,11 +163,6 @@ class RequestStream (BaseRequest, ) :
     def do_check (self, client, ) :
         super(RequestStream, self).do_check(client, )
 
-        try :
-            self.body['Type']
-        except KeyError :
-            raise _exceptions.InvalidRequest('invalid request, some key is missing.', )
-
         if type(self.body.get('Type', ), ) not in (str, unicode, ) :
             raise _exceptions.InvalidRequest('invalid request, `Type` must be str.', )
 
@@ -202,11 +191,6 @@ class RequestForceLeave (BaseRequest, ) :
     def do_check (self, client, ) :
         super(RequestForceLeave, self).do_check(client, )
 
-        try :
-            self.body['Node']
-        except KeyError :
-            raise _exceptions.InvalidRequest('invalid request, some key is missing.', )
-
         if type(self.body.get('Node', ), ) not in (str, unicode, ) :
             raise _exceptions.InvalidRequest('invalid request, `Type` must be str.', )
 
@@ -223,11 +207,6 @@ class RequestMonitor (BaseRequest, ) :
 
     def do_check (self, client, ) :
         super(RequestMonitor, self).do_check(client, )
-
-        try :
-            self.body['LogLevel']
-        except KeyError :
-            raise _exceptions.InvalidRequest('invalid request, some key is missing.', )
 
         if type(self.body.get('LogLevel', ), ) not in (str, unicode, ) :
             raise _exceptions.InvalidRequest('invalid request, `Type` must be str.', )
@@ -246,11 +225,6 @@ class RequestStop (BaseRequest, ) :
     def do_check (self, client, ) :
         super(RequestStop, self).do_check(client, )
 
-        try :
-            self.body['Stop']
-        except KeyError :
-            raise _exceptions.InvalidRequest('invalid request, some key is missing.', )
-
         if type(self.body.get('Stop', ), ) not in (int, long, ) :
             raise _exceptions.InvalidRequest('invalid request, `Type` must be int.', )
 
@@ -268,11 +242,6 @@ class RequestJoin (BaseRequest, ) :
 
     def do_check (self, client, ) :
         super(RequestJoin, self).do_check(client, )
-
-        try :
-            self.body['Existing']
-        except KeyError :
-            raise _exceptions.InvalidRequest('invalid request, some key is missing.', )
 
         if type(self.body.get('Existing', ), ) not in (list, tuple, ) :
             raise _exceptions.InvalidRequest(

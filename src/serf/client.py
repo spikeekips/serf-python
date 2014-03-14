@@ -53,7 +53,10 @@ class Client (threading.local, ) :
         self.ipc_version = ipc_version
         self.seq = 0
 
-        self._initialize()
+        self._got_first_stream_response = False
+        self._command_handlers = dict()
+        self._requests_container = list()
+        self._unpacker = msgpack.Unpacker(use_list=True, )
 
     def __enter__ (self, ) :
         self.connect()
@@ -65,19 +68,14 @@ class Client (threading.local, ) :
 
         return
 
-    def _initialize (self, requests=None, reset_seq=False, ) :
+    def _on_lost_connection (self, ) :
         self._got_first_stream_response = False
-        self._command_handlers = dict()
 
-        if reset_seq :
-            self.seq = 0
-
-        if requests :
-            self._requests_container = requests
-        else :
-            self._requests_container = list()
+        self.seq = 0
 
         self._unpacker = msgpack.Unpacker(use_list=True, )
+
+        return
 
     def connect (self, ) :
         self._conn.connect()
@@ -96,7 +94,7 @@ class Client (threading.local, ) :
 
     def __getattr__ (self, command, ) :
         # convert python attribute to the real command
-        if command not in constant.COMMAND_LIST :
+        if command not in REQUEST_HANDLER :
             return super(Client, self, ).__getattribute__(command, )
 
         _func = lambda **kw : self.__call__(command, **kw)
@@ -158,12 +156,15 @@ class Client (threading.local, ) :
         self._requests_container.append(request, )
         return self
 
-    def request (self, watch=False, timeout=constant.DEFAULT_TIMEOUT, ) :
-        if not self._requests_container :
+    def request (self, watch=False, timeout=constant.DEFAULT_TIMEOUT, requests=None, ) :
+        if not self._requests_container and not requests :
             raise _exceptions.RpcError('no requests registered.', )
 
-        _requests = self._requests_container[:]
-        self._requests_container = list()
+        if requests :
+            _requests = requests
+        else :
+            _requests = self._requests_container[:]
+            self._requests_container = list()
 
         _missing_handshake = _requests[0].command != 'handshake'
 
@@ -194,7 +195,6 @@ class Client (threading.local, ) :
                 timeout=timeout,
             )
 
-        self._initialize()
         return _responses
 
     def watch (self, timeout=None, ) :
@@ -219,24 +219,29 @@ class Client (threading.local, ) :
                         )
             except _exceptions.ConnectionLost :
                 log.debug('connection lost.', )
-                self._initialize(requests, reset_seq=True, )
-                return self.request(watch=bool(stream_request), )
+                self._on_lost_connection()
+                return self.request(watch=bool(stream_request), requests=requests, )
             except _exceptions.Disconnected :
                 log.debug('disconnected', )
                 return _responses
 
             _response.callback()
+
             if not stream_request :
                 _responses.append(_response, )
 
             if stream_request :
                 self._got_first_stream_response = True
 
-            if _response.request.seq in self._command_handlers :
+            if _response.seq in self._command_handlers :
                 try :
                     _requests.remove(_response.request, )
                 except ValueError :
                     pass
+
+                # remove request from `_command_handlers`
+                if not _response.request.is_stream :
+                    del self._command_handlers[_response.seq]
 
         self._command_handlers = dict()
         if stream_request :

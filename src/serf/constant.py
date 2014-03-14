@@ -11,16 +11,3 @@ CONNECTION_RETRY = 3
 CONNECTION_RETRY_INTERVAL = 2
 
 
-COMMAND_LIST = (
-        'handshake',
-        'event',
-        'force_leave',
-        'join',
-        'members',
-        'stream',
-        'monitor',
-        'stop',
-        'leave',
-    )
-
-
