@@ -404,6 +404,5 @@ after getting response for `members`.
 
 * support the missing commands, `tags`, `auth`, etc.
 * support various environment, Django, flask, etc.
-* ~~support context manager.~~
 
 
