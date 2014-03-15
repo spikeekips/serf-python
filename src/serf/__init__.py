@@ -1,5 +1,5 @@
-from .client import Client
-Client
+from .client import Client, get_request_class
+Client, get_request_class
 
 from .connection import Connection
 Connection

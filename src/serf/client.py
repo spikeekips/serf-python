@@ -15,6 +15,10 @@ from .command_handler import REQUEST_HANDLER, RESPONSE_HANDLER
 log = logging.getLogger('serf-rpc-client', )
 
 
+def get_request_class (command, ) :
+    return REQUEST_HANDLER.get(command, )
+
+
 class Client (threading.local, ) :
     def __init__ (self,
                     hosts=None,
@@ -113,7 +117,7 @@ class Client (threading.local, ) :
         return
 
     def _get_request_class (self, command, ) :
-        return REQUEST_HANDLER.get(command, )
+        return get_request_class(command, )
 
     def add_callback (self, *callbacks) :
         self._append_callback(*callbacks)

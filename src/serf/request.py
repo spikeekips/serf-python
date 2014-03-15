@@ -30,7 +30,8 @@ class BaseRequest (object ) :
     optional_argument = tuple()
 
     def __init__ (self, **body) :
-        self.command_translated = self.command.replace('_', '-', )
+        if self.command :
+            self.command_translated = self.command.replace('_', '-', )
 
         self.seq = None
         self.body = body
