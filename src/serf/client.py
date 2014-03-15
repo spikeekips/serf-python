@@ -3,7 +3,11 @@ import msgpack
 import threading
 import string
 import urllib
-import collections
+
+try :
+    from collections import OrderedDict
+except ImportError :
+    from ordereddict import OrderedDict  # for python2.6
 
 from . import constant
 from . import connection
@@ -71,7 +75,7 @@ class Client (threading.local, ) :
     def _initialize (self, ) :
         self.seq = 0
         self._request_handlers = dict()
-        self._received_headers = collections.OrderedDict()
+        self._received_headers = OrderedDict()
         self._requests_sequence = list()
         self._unpacker = msgpack.Unpacker(use_list=True, )
 
