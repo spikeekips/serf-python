@@ -23,11 +23,12 @@ def test_request_stream_command () :
     _request = serf.request.BaseRequest()
     _request.command = 'anonymous_command'
 
-    assert not _request.is_stream
+    assert not _request.need_watchful
 
-    _request.command = serf.constant.STREAM_COMMANDS[0]
+    _request = serf.get_request_class('stream')(Type='*', )
 
-    assert _request.is_stream
+    assert _request.need_watchful
+
 
 def test_request_add_callback_by_state_order () :
     _request = serf.request.BaseRequest()

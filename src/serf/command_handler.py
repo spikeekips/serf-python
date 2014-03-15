@@ -9,13 +9,20 @@ from .request import (
         RequestForceLeave,
         RequestMonitor,
         RequestStop,
+        RequestMembers,
+        RequestTags,
         RequestStream,
+        RequestQuery,
+        RequestRespond,
     )
+
 from .response import (
         ResponseJoin,
         ResponseMembers,
-        ResponseWithBody,
         ResponseWithoutBody,
+        ResponseStream,
+        ResponseMonitor,
+        ResponseQuery,
     )
 
 _REQUEST_HANDLER = {
@@ -23,11 +30,14 @@ _REQUEST_HANDLER = {
         'event': RequestEvent,
         'force_leave': RequestForceLeave,
         'join': RequestJoin,
-        'members': BaseRequest,
+        'members': RequestMembers,
+        'tags': RequestTags,
         'stream': RequestStream,
         'monitor': RequestMonitor,
         'stop': RequestStop,
         'leave': RequestLeave,
+        'query': RequestQuery,
+        'respond': RequestRespond,
     }
 
 
@@ -37,12 +47,13 @@ _RESPONSE_HANDLER = {
         'force_leave': ResponseWithoutBody,
         'join': ResponseJoin,
         'members': ResponseMembers,
-        'stream': ResponseWithoutBody,
-        'stream_result': ResponseWithBody,
-        'monitor': ResponseWithBody,
-        'monitor_result': ResponseWithBody,
+        'tags': ResponseWithoutBody,
+        'stream': ResponseStream,
+        'monitor': ResponseMonitor,
         'stop': ResponseWithoutBody,
         'leave': ResponseWithoutBody,
+        'query': ResponseQuery,
+        'respond': ResponseWithoutBody,
     }
 
 

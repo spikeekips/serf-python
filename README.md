@@ -12,7 +12,7 @@
 $ pip install serf-python
 ```
 
-or from source.
+or, from source.
 
 ```sh
 $ git clone git@github.com:spikeekips/serf-python.git
@@ -27,19 +27,21 @@ $ python setup.py install
 
 `serf` provides the commands to communicate with `serf` agent thru *RPC*, based on `msgpack`. Naturally `serf-python` use the *RPC* protocol. `serf-python` supports these `serf` commands,
 
-command         |
----             |
-*handshake*     |
-*event*         |
-*force-leave*   |
-*join*          |
-*members*       |
-*stream*        |
-*monitor*       |
-*stop*          |
-*leave*         |
+* handshake
+* event
+* force-leave
+* join
+* members
+* stream
+* monitor
+* stop
+* leave
+* query
+* respond
 
 `serf` provides some more commands like `auth`, these will be supported as soon as possible. :) You can find the all the supported commands in http://www.serfdom.io/docs/agent/rpc.html .
+
+Each command has it's own arguments, which are described in RPC command page http://www.serfdom.io/docs/agent/rpc.html . `serf-python` exactly follow these argument rules, so you can use the same arguments with the arguments of RPC commands in `serf`.
 
 
 ### Basic Usage
@@ -92,13 +94,13 @@ Before call `request()` or `watch()`, any command will not be delivered to the a
 
 The response, `_responses` is `list` type, which is ordered by `Seq` and the `Response` has the following attributes,
 
-attribute       | type  | description
----             | ---   | ---
-*header*        | dict  | response header, ``` {'Error': '', 'Seq': 1} ```
-*body*          | -     | body message
-*seq*           | int   | requested `Seq`
-*error*         | str   | error message
-*is_success*    | bool  | command is successful or not(contextual).
+attribute         | type    | description
+---               | ---     | ---
+**header**        | *dict*  | response header, ``` {'Error': '', 'Seq': 1} ```
+**body**          | -       | body message
+**seq**           | *int*   | requested `Seq`
+**error**         | *str*   | error message
+**is_success**    | *bool*  | command is successful or not(contextual).
 
 ```python
 >>> _responses[0].seq
@@ -147,8 +149,7 @@ The callbacks will be executed by order.
 
 #### Streaming Response
 
-For streaming command like `stream` or `monitor` you can use `watch`, you can
-find the available `LogLevel` at https://github.com/hashicorp/serf/blob/a7d854a1b598975f687771e8975d32c8dfbc8319/command/agent/log_levels.go#L12 .
+For streaming command like `stream` or `monitor` you can use `watch`, you can find the available `LogLevel` at https://github.com/hashicorp/serf/blob/a7d854a1b598975f687771e8975d32c8dfbc8319/command/agent/log_levels.go#L12 .
 
 ```python
 >>> def _callback (response, ) :
@@ -174,9 +175,10 @@ The description and arguments for each command, please refer this page, http://w
 
 #### handshake
 
-In `serf` thru *RPC*, you must request the `handshake` command ahead of any other commands, but `serf-python` will automatically request `handshake` even you omit it.
+In `serf` thru *RPC*, you must request the `handshake` command ahead of any other commands, so `serf-python` will automatically request `handshake` even you omit it.
 
 ```python
+>>> _client = serf.Client()
 >>> _responses = _client.handshake().request()
 [
     <ResponseHandshake: <RequestHandshake: handshake, 0, {'Version': 1}>, {'Seq': 0, 'Error': ''}>
@@ -185,9 +187,10 @@ In `serf` thru *RPC*, you must request the `handshake` command ahead of any othe
 True
 ```
 
-You can bypass the `handshake` command for convenience,
+You can bypass the `handshake` command for convenience, this is safe and easy way.
 
 ```python
+>>> _client = serf.Client()
 >>> _responses = _client.members().request()
 ```
 
@@ -224,8 +227,10 @@ None
 ...        Existing=('127.0.0.1:7900', ),
 ...        Replay=False,
 ...    ).request()
->>> _responses[0]
-[<ResponseJoin: <RequestJoin: join, 1, {'Replay': False, 'Existing': ('127.0.0.1:7900',)}>, {'Seq': 1, 'Error': ''}>]
+>>> _responses
+[
+    <ResponseJoin: <RequestJoin: join, 1, {'Replay': False, 'Existing': ('127.0.0.1:7900',)}>, {'Seq': 1, 'Error': ''}>
+]
 >>> _responses[0].seq
 1
 >>> _responses[0].error
@@ -240,6 +245,8 @@ If the `Num` is less than 1 in the response body, `is_success` will be `False`.
 
 
 #### members
+
+You can get all the members without any *filtered* arguments.
 
 ```python
 >>> _responses = _client.members().request()
@@ -262,7 +269,7 @@ If the `Num` is less than 1 in the response body, `is_success` will be `False`.
               'ProtocolMax': 2,
               'ProtocolMin': 1,
               'Status': 'alive',
-              'Tags': {}},
+              'Tags': {'role': 'dummy'}},
              ...
              {'Addr': [127, 0, 0, 1],
               'DelegateCur': 4,
@@ -275,6 +282,53 @@ If the `Num` is less than 1 in the response body, `is_success` will be `False`.
               'ProtocolMin': 1,
               'Status': 'alive',
               'Tags': {}}]}
+```
+
+You also can filter the members with *filtered* arguments. With *filters*, it will use the `members-filtered` command instead of `members` command.
+
+```python
+>>> _responses = _client.members(Status='alive', Tags=dict(role='dummy', ), ).request()
+>>> _responses[0]
+<ResponseMembers: <RequestMembers: members, 2, >, {'Seq': 2, 'Error': ''}>
+>>> _responses[0].seq
+1
+>>> _responses[0].error
+''
+>>> _responses[0].header
+{'Error': '', 'Seq': 1}
+>>> _responses[0].body
+{'Members': [{'Addr': [127, 0, 0, 1],
+              'DelegateCur': 4,
+              'DelegateMax': 4,
+              'DelegateMin': 2,
+              'Name': 'node3',
+              'Port': 7900,
+              'ProtocolCur': 2,
+              'ProtocolMax': 2,
+              'ProtocolMin': 1,
+              'Status': 'alive',
+              'Tags': {'role': 'dummy'}}]}
+```
+
+The filtering conditions will be joined as ```AND (&)``` operator, that is, `serf` will return the members, which are satisfied to all the filter condition.
+
+You can find the available `Status` at https://github.com/hashicorp/serf/blob/master/serf/serf.go#L101 .
+
+#### tags
+
+```python
+>>> _responses = _client.tags(
+...        Tags=dict(role='dummy', ),
+...        DeleteTags=('critical', ),
+...    ).request()
+>>> _responses[0]
+<ResponseTags: <RequestTags: tags, 1, {'DeleteTags': ('critical',), 'Tags': {'role': 'dummy'}}>, {'Seq': 1, 'Error': ''}>
+>>> _responses[0].seq
+1
+>>> _responses[0].is_success
+''
+>>> _responses[0].header
+{'Error': '', 'Seq': 1}
 ```
 
 
@@ -291,9 +345,7 @@ If the `Num` is less than 1 in the response body, `is_success` will be `False`.
 ...     pprint.pprint(response.header, )
 ...
 ...     print 'events:'
-...     if response.body :
-...         for _event in response.body :
-...             pprint.pprint(_event, )
+...     pprint.pprint(response.body, )
 
 
 ...     return
@@ -337,7 +389,7 @@ With `request()`, you can just get the latest log messages. With `watch()` like 
 ```python
 >>> def _callback_stream (response, ) :
 ...     # get `Seq` for `stop`
-...     _seq = resonse.seq
+...     _seq = response.seq
 ...     _client.stop(Stop=_seq, )
 ...     return
 
@@ -360,6 +412,59 @@ With `request()`, you can just get the latest log messages. With `watch()` like 
 
 or as a `Node` value, you can use the node name, which is the `Name` value in the response of `members` command.
 
+
+#### query
+
+```python
+>>> def _callback_query (response, ) :
+...     if not response.is_sucess :
+...         raise ValueError(response.error, )
+...
+...     print response
+...     return
+
+>>> _response = _client.query(
+...        Name='response-me',
+...        Payload='this is payload of `response-me` query event',
+...    ).add_callback(_callback_query, ).request()
+
+>>> _response.is_sucess
+True
+>>> len(_response)
+3
+>>> for i in _response :
+...     print i.body
+{'From': 'node0', 'Payload': None, 'Type': 'ack'}
+{'From': 'node0', 'Payload': '.......', 'Type': 'response'}
+{'From': '', 'Payload': None, 'Type': 'done'}
+```
+
+In this example, we use `request()`, but `query` command will wait until the `done` response is received.
+
+
+#### respond
+
+```python
+>>> def _callback_respond (response, ) :
+...     if not response.is_sucess :
+...         raise ValueError(response.error, )
+...
+...     return
+...
+>>> def _callback_stream (response, ) :
+...     print '> got stream response.'
+... 
+...     if response.body :
+...         if response.body.get('Event') in ('query', ) :
+...             # send respond back.
+...             _client.respond(
+...                     ID=response.body.get('ID'),
+...                     Payload='this is payload',
+...                     Timeout=10,
+...                 ).add_callback(_callback_respond, ).request()
+... 
+>>> _client.stream(Type='query', ).add_callback(_callback_stream, ).watch()
+```
 
 ## Tips and Tricks
 
@@ -396,13 +501,19 @@ Without `wait=True`, it will just close the connection before sending requests.
 ...     _client.members().request
 ```
 
-The outside of `with` block, the `_client` will be automatically be disconnect
-after getting response for `members`.
+The outside of `with` block, the `_client` will be automatically be disconnect after getting response for `members`.
 
 
 ## Todo and Next...
 
-* support the missing commands, `tags`, `auth`, etc.
+* support the missing commands, `auth`, etc.
 * support various environment, Django, flask, etc.
+
+
+## Participate Developing
+
+Please share where and how you are using the `serf-python`.
+
+
 
 

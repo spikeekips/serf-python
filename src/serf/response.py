@@ -1,15 +1,18 @@
 import socket
+import logging
 
-from . import _exceptions
+
+log = logging.getLogger('serf-rpc-client', )
 
 
 class BaseResponse (object, ) :
     has_body = True
+    has_more_responses = False
 
     def __init__ (self, request, header, body, ) :
         self.request = request
         self.header = header
-        self._body = body
+        self.body = body
 
     def __repr__ (self, ) :
         return '<%s: %s, %s>' % (
@@ -18,12 +21,17 @@ class BaseResponse (object, ) :
                 self.header,
             )
 
-    def _parse_body (self, ) :
+    def _parse_body (self, body, ) :
+        return body
+
+    def _get_body (self, ) :
         return self._body
 
-    @property
-    def body (self, ) :
-        return self._parse_body()
+    def _set_body (self, body, ) :
+        self._body = self._parse_body(body, )
+        return
+
+    body = property(_get_body, _set_body, )
 
     @property
     def seq (self, ) :
@@ -52,9 +60,8 @@ class BaseResponse (object, ) :
 class ResponseWithoutBody (BaseResponse, ) :
     has_body = False
 
-    def __init__ (self, *a, **kw) :
-        super(ResponseWithoutBody, self, ).__init__(*a, **kw)
-        self._body = None if len(self._body) < 1 else self._body
+    def _parse_body (self, body, ) :
+        return None
 
 
 class ResponseWithBody (BaseResponse, ) :
@@ -62,42 +69,36 @@ class ResponseWithBody (BaseResponse, ) :
 
 
 class ResponseJoin (ResponseWithBody, ) :
-    def __init__ (self, *a, **kw) :
-        super(ResponseJoin, self, ).__init__(*a, **kw)
-        self._body = None if len(self._body) < 1 else self._body[0]
+    def _parse_body (self, body, ) :
+        if not body or type(body) not in (dict, ) :
+            return None
+
+        return body
 
     @property
     def is_success (self, ) :
-        if not super(ResponseJoin, self).is_success or type(self._body) not in (dict, ) :
+        if not super(ResponseJoin, self).is_success or type(self.body) not in (dict, ) :
             return False
 
-        return self._body.get('Num', 0, ) > 0
+        return self.body.get('Num', 0, ) > 0
 
 
 class ResponseMembers (ResponseWithBody, ) :
-    def __init__ (self, *a, **kw) :
-        super(ResponseMembers, self).__init__(*a, **kw)
+    def _parse_body (self, body, ) :
+        if not body :
+            return
 
-        try :
-            self._body = self._body[0]
-        except IndexError :
-            raise _exceptions.RpcError('invalid response body for members', )
-
-        self._body_parsed = None
-
-    def _parse_body (self, ) :
         # FIXME: in the current `serf` has bugs, https://github.com/hashicorp/serf/issues/158 .
-        if self._body_parsed is None :
-            self._body_parsed = dict(Members=list(), )
-            for i in self._body.get('Members', ) :
-                try :
-                    i['Addr'] = self._parse_addr_field(i.get('Addr', ), )
-                except (socket.error, ) :
-                    i['Addr'] = None
-
-                self._body_parsed['Members'].append(i, )
-
-        return self._body_parsed
+        _parsed = dict(Members=list(), )
+        for i in body.get('Members', ) :
+            try :
+                i['Addr'] = self._parse_addr_field(i.get('Addr', ), )
+            except (socket.error, ) :
+                i['Addr'] = None
+        
+            _parsed['Members'].append(i, )
+        
+        return _parsed
 
     def _parse_addr_field (self, a, ) :
         if type(a) not in (list, tuple, ) :
@@ -107,5 +108,35 @@ class ResponseMembers (ResponseWithBody, ) :
             return map(int, a.split('.', ), )
 
         return a
+
+
+class ResponseStream (ResponseWithBody, ) :
+    has_more_responses = True
+
+    def callback (self, ) :
+        super(ResponseStream, self).callback()
+
+        return None
+
+
+class ResponseMonitor (ResponseWithBody, ) :
+    has_more_responses = True
+
+    def callback (self, ) :
+        super(ResponseMonitor, self).callback()
+
+        return None
+
+
+class ResponseQuery (ResponseWithBody, ) :
+    has_more_responses = True
+
+    def callback (self, ) :
+        super(ResponseQuery, self).callback()
+
+        if self.body.get('Type') in ('done', ) :
+            self.has_more_responses = False
+
+        return self
 
 

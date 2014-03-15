@@ -3,10 +3,12 @@ import msgpack
 import threading
 import string
 import urllib
+import collections
 
 from . import constant
 from . import connection
 from . import _exceptions
+from .request import FunctionCommandCall
 from .command_handler import REQUEST_HANDLER, RESPONSE_HANDLER
 
 
@@ -50,13 +52,26 @@ class Client (threading.local, ) :
             connection_class = connection.Connection
 
         self._conn = connection_class(_hosts, auto_reconnect=auto_reconnect, )
-        self.ipc_version = ipc_version
-        self.seq = 0
+        self._conn.add_callback(connection_lost=self._callback_lost_connection, )
+        self._conn.add_callback(disconnected=self._callback_disconnected, )
 
-        self._got_first_stream_response = False
-        self._command_handlers = dict()
-        self._requests_container = list()
+        self.ipc_version = ipc_version
+
+        # assign command handlers
+        for i in REQUEST_HANDLER.keys() :
+            setattr(self, i, FunctionCommandCall(i, self, ), )
+
+        # initialize state
+        self._initialize()
+
+    def _initialize (self, ) :
+        self.seq = 0
+        self._request_handlers = dict()
+        self._received_headers = collections.OrderedDict()
+        self._requests_sequence = list()
         self._unpacker = msgpack.Unpacker(use_list=True, )
+
+        return
 
     def __enter__ (self, ) :
         self.connect()
@@ -68,12 +83,17 @@ class Client (threading.local, ) :
 
         return
 
-    def _on_lost_connection (self, ) :
-        self._got_first_stream_response = False
-
+    def _callback_lost_connection (self, connection, ) :
         self.seq = 0
+        self._request_handlers = dict()
+        self._received_headers.clear()
 
         self._unpacker = msgpack.Unpacker(use_list=True, )
+
+        return
+
+    def _callback_disconnected (self, connection, ) :
+        self._initialize()
 
         return
 
@@ -83,7 +103,7 @@ class Client (threading.local, ) :
         return self
 
     def disconnect (self, wait=False, ) :
-        if wait and len(self._requests_container) > 0 :
+        if wait and len(self._requests_sequence) > 0 :
             self._append_callback(lambda x : self.disconnect(), )
 
             return self
@@ -92,31 +112,17 @@ class Client (threading.local, ) :
 
         return
 
-    def __getattr__ (self, command, ) :
-        # convert python attribute to the real command
-        if command not in REQUEST_HANDLER :
-            return super(Client, self, ).__getattribute__(command, )
-
-        _func = lambda **kw : self.__call__(command, **kw)
-        _func.__name__ = command
-
-        return _func
-
-    def __call__ (self, command, **body) :
-        _request = get_request_class(command, )(**body).check(self, )
-
-        self.request_by_request(_request, )
-
-        return self
+    def _get_request_class (self, command, ) :
+        return REQUEST_HANDLER.get(command, )
 
     def add_callback (self, *callbacks) :
         self._append_callback(*callbacks)
         return self
 
     def _append_callback (self, *callbacks) :
-        assert len(self._requests_container) > 0
+        assert len(self._requests_sequence) > 0
 
-        self._requests_container[-1].add_callback(*callbacks)
+        self._requests_sequence[-1].add_callback(*callbacks)
 
         return
 
@@ -129,19 +135,9 @@ class Client (threading.local, ) :
         return
 
     def _request_handshake (self, ) :
-        _request = get_request_class('handshake', )(
+        _request = self._get_request_class('handshake', )(
                 Version=self.ipc_version,
             ).check(self, ).add_callback(self._callback_handshake, )
-
-        self._request(_request, )
-        return self._get_response().callback().is_success
-
-    def _request_members (self, *callbacks) :
-        _request = get_request_class('members', )(
-            ).check(self, )
-
-        if callbacks is not None :
-            _request.add_callback(*callbacks)
 
         self._request(_request, )
         return self._get_response().callback().is_success
@@ -149,29 +145,36 @@ class Client (threading.local, ) :
     def request_by_request (self, request, ) :
         # remove the duplicated command, unperiodically `serf` rpc server miss
         # the some responses.
-        for _n, i in enumerate(self._requests_container) :
+        _callbacks = list()
+        for _n, i in enumerate(self._requests_sequence) :
             if i.command == request.command :
-                del self._requests_container[_n]
+                _callbacks.extend(self._requests_sequence[_n].callbacks, )
+                del self._requests_sequence[_n]
 
-        self._requests_container.append(request, )
+        # restore the callbacks, already connected.
+        if _callbacks :
+            request.callbacks.extend(_callbacks, )
+
+        self._requests_sequence.append(request, )
+
         return self
 
     def request (self, watch=False, timeout=constant.DEFAULT_TIMEOUT, requests=None, ) :
-        if not self._requests_container and not requests :
+        if not self._requests_sequence and not requests :
             raise _exceptions.RpcError('no requests registered.', )
 
         if requests :
             _requests = requests
         else :
-            _requests = self._requests_container[:]
-            self._requests_container = list()
+            _requests = self._requests_sequence[:]
+            self._requests_sequence = list()
 
         _missing_handshake = _requests[0].command != 'handshake'
 
-        _stream_request = None
+        _stream_requests = list()
 
-        _requests_container =  _requests[:]
-        for i in _requests_container :
+        _requests_sequence =  _requests[:]
+        for i in _requests_sequence :
             # check whether the connection is still available or not.
             self._conn.connection
 
@@ -182,8 +185,14 @@ class Client (threading.local, ) :
             if self._conn.just_connected and _missing_handshake :
                 self._request_handshake()
 
-            if watch and i.is_stream :
-                _stream_request = i
+            if watch and i.need_watchful :
+                _stream_requests.append(i, )
+
+            if i.force_watchful :
+                if i not in _stream_requests :
+                    _stream_requests.append(i, )
+
+                watch = True
 
             self._request(i, )
 
@@ -191,8 +200,9 @@ class Client (threading.local, ) :
 
         _responses = self._handle_response(
                 _requests,
-                _stream_request,
+                _stream_requests,
                 timeout=timeout,
+                watch=watch,
             )
 
         return _responses
@@ -200,128 +210,103 @@ class Client (threading.local, ) :
     def watch (self, timeout=None, ) :
         return self.request(watch=True, timeout=timeout, )
 
-    def _handle_response (self, requests, stream_request=None, timeout=None, ) :
-        if stream_request :
-            self._got_first_stream_response = False
+    def _handle_response (self, requests, stream_requests=None, timeout=None, watch=False, ) :
+        if stream_requests :
             timeout = None
 
         _requests = requests[:]
         _responses = list()
         while True :
-            if not stream_request and not _requests :
-                return _responses
+            if not stream_requests and not _requests :
+                break
 
             try :
-                _response = self._get_response(
-                            is_stream=bool(stream_request, )
-                                if stream_request and self._got_first_stream_response else False,
-                            timeout=timeout,
-                        )
+                _response = self._get_response(timeout=timeout, )
             except _exceptions.ConnectionLost :
                 log.debug('connection lost.', )
-                self._on_lost_connection()
-                return self.request(watch=bool(stream_request), requests=requests, )
+
+                return self.request(
+                        watch=watch,
+                        requests=_requests,
+                    )
             except _exceptions.Disconnected :
                 log.debug('disconnected', )
                 return _responses
 
-            _response.callback()
-
-            if not stream_request :
+            _response_callbacked =_response.callback()
+            if _response_callbacked :
                 _responses.append(_response, )
 
-            if stream_request :
-                self._got_first_stream_response = True
-
-            if _response.seq in self._command_handlers :
-                try :
+            if not _response.has_more_responses :
+                if _response.request in _requests :
                     _requests.remove(_response.request, )
-                except ValueError :
-                    pass
 
-                # remove request from `_command_handlers`
-                if not _response.request.is_stream :
-                    del self._command_handlers[_response.seq]
+                del self._request_handlers[_response.seq]
 
-        self._command_handlers = dict()
-        if stream_request :
-            self._got_first_stream_response = False
+                if _response.seq in self._received_headers :
+                    del self._received_headers[_response.seq]
 
-        return self.request_by_request(stream_request, ).request()
+                if _response.request in stream_requests :
+                    stream_requests.remove(_response.request, )
+
+        return _responses
 
     def _request (self, request, ) :
         request.seq = self.seq
-        self._command_handlers[self.seq] = request
+        self._request_handlers[self.seq] = request
         self.seq += 1
 
-        log.debug('request %s' % (repr(request, ), ), )
+        log.debug('trying to request command: %s' % (repr(request), ), )
 
-        _method = getattr(self, '_request__%s' % request.command, self._request_default, )
-
-        _method(request, )
+        self._conn.write(str(request, ), )
         return
 
-    def _request_default (self, request, ) :
-        self._conn.write(request, )
-        return
+    def _handle_header (self, parsed, ) :
+        if 'Seq' not in parsed or 'Error' not in parsed :
+            raise _exceptions.ThisIsNotHeader
 
-    def _get_response (self, is_stream=False, timeout=None, ) :
-        class FoundBody (Exception, ) : pass
+        if parsed.get('Seq') not in self._request_handlers :
+            raise _exceptions.ThisIsNotValieHeader
 
+        _request = self._request_handlers.get(parsed.get('Seq'), )
+
+        if parsed.get('Seq') in self._received_headers :
+            self._received_headers.popitem(parsed.get('Seq'), )
+
+        _response_class = RESPONSE_HANDLER.get(_request.command, )
+
+        self._received_headers[parsed.get('Seq')] = _response_class(
+                _request,
+                parsed,
+                None,
+            )
+
+        return _response_class
+
+    def _get_response (self, timeout=None, ) :
         _data = ''
 
-        _header = None
-        _request = None
-        _body = list()
-        _response_class = None
+        _body = None
         while True :
-            try:
+            try :
                 _parsed = self._unpacker.next()
-                if _header is not None :
-                    if set(_parsed.keys()) == set(['Seq', 'Error', ], ) : # it's header
-                        continue
-
-                    _body.append(_parsed, )
-                else :
-                    if _parsed.get('Seq') not in self._command_handlers :
-                        #raise RpcError('got invalid response: %s' % _header, )
-                        continue
-
-                    _header = _parsed
-                    _request = self._command_handlers.get(_header.get('Seq'), )
-
-                    _commands = list()
-                    if is_stream :
-                        _commands.append('%s_result' % (_request.command, ), )
-                        _commands.append(_request.command, )
-                    else :
-                        _commands.append(_request.command, )
-
-                    for i in _commands :
-                        _response_class = RESPONSE_HANDLER.get(i, )
-                        if _response_class is not None :
-                            break
-
-                    if not _response_class.has_body :
-                        raise FoundBody
-            except StopIteration :
-                if _header and _body :
+                try :
+                    _response = self._handle_header(_parsed, )
+                    if not _response.has_body :
+                        break
+                except _exceptions.ThisIsNotHeader :
+                    _body = _parsed
                     break
-
+                except _exceptions.ThisIsNotValieHeader :
+                    continue
+            except StopIteration :
                 _data = self._conn.read(timeout=timeout, )
-                #log.debug('< got data: %s' % ((_data, ), ), )
                 self._unpacker.feed(_data)
-            except FoundBody :
-                if _response_class is None :
-                    raise _exceptions.RpcError('got invalid response', )
 
-                break
+        _response = self._received_headers.values()[-1]
+        self._received_headers.popitem()
 
-        return _response_class(_request, _header, _body, )
-
-
-def get_request_class (command, ) :
-    return REQUEST_HANDLER.get(command, )
-
+        _response.body = _body
+        return _response
 
 

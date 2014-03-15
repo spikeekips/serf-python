@@ -6,37 +6,35 @@ class FakeClient (object, ) :
     seq = 100
 
 
-def test_request_event () :
+def test_request_respond () :
     _body = dict(
-            Name='anonymous-event',
+            ID=10,
             Payload='payload',
         )
 
-    _request = serf.get_request_class('event')(**_body)
+    _request = serf.get_request_class('respond')(**_body)
     _request.check(FakeClient(), )
 
     assert _request.is_checked
 
-    # `Coalesce` is not bool type
     _body = dict(
-            Name='anonymous-event',
+            ID='not-int',
             Payload='payload',
-            Coalesce=1,
         )
 
-    _request = serf.get_request_class('event')(**_body)
+    _request = serf.get_request_class('respond')(**_body)
     with pytest.raises(serf.InvalidRequest, ) :
         _request.check(FakeClient(), )
 
     assert not _request.is_checked
 
 
-def test_request_event_payload_size_limit () :
+def test_request_respond_payload_size_limit () :
     _body_normal = dict(
-            Name='anonymous-event',
-            Payload='payload',
+            ID=10,
+            Payload='a',
         )
-    _request = serf.get_request_class('event')(**_body_normal)
+    _request = serf.get_request_class('respond')(**_body_normal)
     _request.check(FakeClient(), )
 
     assert _request.is_checked
@@ -44,12 +42,12 @@ def test_request_event_payload_size_limit () :
     _dumped = ''
 
     _n = 10
-    _body_without_payload = dict(Name='anonymous-event', Payload='', )
-    while len(_dumped) < serf.constant.PAYLOAD_SIZE_LIMIT :
+    _body_without_payload = dict(ID=10, Payload='', )
+    while len(str(_dumped)) < serf.constant.RESPOND_PAYLOAD_SIZE_LIMIT :
         _body_without_payload['Payload'] = 'a' * _n
-        _dumped = serf.get_request_class('event', ).dumps(
+        _dumped = serf.get_request_class('respond', ).dumps(
                 _request.command,
-                0,
+                FakeClient.seq,
                 _body_without_payload,
             )
         _n += 1
@@ -57,18 +55,17 @@ def test_request_event_payload_size_limit () :
     _body_overlimit = _body_without_payload.copy()
     _body_overlimit['Payload'] = 'a' * (_n + 1)
 
-    _request = serf.get_request_class('event')(**_body_overlimit)
+    _request = serf.get_request_class('respond')(**_body_overlimit)
 
     with pytest.raises(serf.InvalidRequest) :
         _request.check(FakeClient(), )
 
     _body_overlimit['Payload'] = 'a' * (_n - 1)
 
-    _request = serf.get_request_class('event')(**_body_overlimit)
+    _request = serf.get_request_class('respond')(**_body_overlimit)
 
     _request.check(FakeClient(), )
 
     assert _request.is_checked
-
 
 
