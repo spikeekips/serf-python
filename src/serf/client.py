@@ -138,7 +138,7 @@ class Client (threading.local, ) :
         if not response.is_success :
             raise _exceptions.RpcError('failed to call `handshake`, %s.' % response.error, )
 
-        log.debug('successfully handshaked', )
+        log.info('successfully handshaked', )
 
         return
 
@@ -231,14 +231,14 @@ class Client (threading.local, ) :
             try :
                 _response = self._get_response(timeout=timeout, )
             except _exceptions.ConnectionLost :
-                log.debug('connection lost.', )
+                log.info('connection lost.', )
 
                 return self.request(
                         watch=watch,
                         requests=_requests,
                     )
-            except _exceptions.Disconnected :
-                log.debug('disconnected', )
+            except _exceptions.Disconnected, e :
+                log.info('disconnected: %s' % e, )
                 return _responses
 
             _response_callbacked =_response.callback()
@@ -264,7 +264,7 @@ class Client (threading.local, ) :
         self._request_handlers[self.seq] = request
         self.seq += 1
 
-        log.debug('trying to request command: %s' % (repr(request), ), )
+        log.info('trying to request command: %s' % (repr(request), ), )
 
         self._conn.write(str(request, ), )
         return
@@ -274,7 +274,7 @@ class Client (threading.local, ) :
             raise _exceptions.ThisIsNotHeader
 
         if parsed.get('Seq') not in self._request_handlers :
-            raise _exceptions.ThisIsNotValieHeader
+            raise _exceptions.ThisIsNotValidHeader
 
         _request = self._request_handlers.get(parsed.get('Seq'), )
 
@@ -305,7 +305,7 @@ class Client (threading.local, ) :
                 except _exceptions.ThisIsNotHeader :
                     _body = _parsed
                     break
-                except _exceptions.ThisIsNotValieHeader :
+                except _exceptions.ThisIsNotValidHeader :
                     continue
             except StopIteration :
                 _data = self._conn.read(timeout=timeout, )

@@ -1,9 +1,7 @@
 import serf
 import pytest
 
-
-class FakeClient (object, ) :
-    seq = 100
+from _base import FakeClient
 
 
 def test_request_respond () :
@@ -30,12 +28,14 @@ def test_request_respond () :
 
 
 def test_request_respond_payload_size_limit () :
+    _client = FakeClient()
+
     _body_normal = dict(
             ID=10,
             Payload='a',
         )
     _request = serf.get_request_class('respond')(**_body_normal)
-    _request.check(FakeClient(), )
+    _request.check(_client, )
 
     assert _request.is_checked
 
@@ -47,7 +47,7 @@ def test_request_respond_payload_size_limit () :
         _body_without_payload['Payload'] = 'a' * _n
         _dumped = serf.get_request_class('respond', ).dumps(
                 _request.command,
-                FakeClient.seq,
+                _client.seq,
                 _body_without_payload,
             )
         _n += 1

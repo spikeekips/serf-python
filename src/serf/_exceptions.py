@@ -19,6 +19,6 @@ class RpcError (Exception, ) : pass
 class ThisIsNotHeader (Exception, ) : pass
 
 
-class ThisIsNotValieHeader (Exception, ) : pass
+class ThisIsNotValidHeader (Exception, ) : pass
 
 

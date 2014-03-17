@@ -1,9 +1,7 @@
 import serf
 import pytest
 
-
-class FakeClient (object, ) :
-    seq = 100
+from _base import FakeClient, FakeConnection
 
 
 def test_request_event () :
@@ -17,11 +15,19 @@ def test_request_event () :
 
     assert _request.is_checked
 
-    # `Coalesce` is not bool type
     _body = dict(
             Name='anonymous-event',
             Payload='payload',
-            Coalesce=1,
+            Coalesce=1, # `Coalesce` is not bool type
+        )
+
+    _request = serf.get_request_class('event')(**_body)
+    with pytest.raises(serf.InvalidRequest, ) :
+        _request.check(FakeClient(), )
+
+    assert not _request.is_checked
+
+    _body = dict( # empty values
         )
 
     _request = serf.get_request_class('event')(**_body)
@@ -70,5 +76,30 @@ def test_request_event_payload_size_limit () :
 
     assert _request.is_checked
 
+
+class EventFakeConnection (FakeConnection, ) :
+    socket_data = (
+            '\x82\xa5Error\xa0\xa3Seq\x00',
+            '\x82\xa5Error\xa0\xa3Seq\x01',
+        )
+
+
+def test_response_event () :
+    _client = serf.Client(connection_class=EventFakeConnection, )
+
+    def _callback (response, ) :
+        assert response.request.command == 'event'
+        assert not response.error
+        assert response.is_success
+        assert response.body is None
+        assert response.seq == 1
+
+
+    _body = dict(
+            Name='anonymous-event',
+            Payload='payload',
+        )
+
+    _client.event(**_body).add_callback(_callback, ).request()
 
 

@@ -1,7 +1,6 @@
 import string
 
 from .request import (
-        BaseRequest,
         RequestEvent,
         RequestHandshake,
         RequestJoin,

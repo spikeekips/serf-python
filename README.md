@@ -149,7 +149,7 @@ The callbacks will be executed by order.
 
 #### Streaming Response
 
-For streaming command like `stream` or `monitor` you can use `watch`, you can find the available `LogLevel` at https://github.com/hashicorp/serf/blob/a7d854a1b598975f687771e8975d32c8dfbc8319/command/agent/log_levels.go#L12 .
+For streaming command like `stream` or `monitor`, you can use `watch`. `watch` will wait and stream the response from `serf` agent until you manually stop it using `stop` command, and your `callback` will be executed in every response.
 
 ```python
 >>> def _callback (response, ) :
@@ -163,9 +163,9 @@ For streaming command like `stream` or `monitor` you can use `watch`, you can fi
 >>> _client.stream().add_callback(_callback, ).request(watch=True, )
 ```
 
-In the stream commands, to handle the responses, you can set the callbacks by `add_callback()` method
+To handle the responses for the stream commands, you can set the callbacks by `add_callback()` method, which will handle the each response by command.
 
-`watch` will wait and stream the response from `serf` agent until you manually stop it using `stop` command, and your `callback` will be executed in every response.
+If you use `request` for the stream commands, the responses will wait until the timeout you set, the default timeout is 2 seconds, whcih is defined in `serf.constant.DEFAULT_TIMEOUT`.
 
 
 ### Commands
@@ -381,6 +381,8 @@ You can filter the stream event using `Type`, for details, see stream section in
 >>> _client.monitor(LogLevel='DEBUG', ).add_callback(_callback_monitor, ).request()
 ```
 
+You can find the available `LogLevel` at https://github.com/hashicorp/serf/blob/a7d854a1b598975f687771e8975d32c8dfbc8319/command/agent/log_levels.go#L12 .
+
 With `request()`, you can just get the latest log messages. With `watch()` like `stream().watch()`, you can get the continuous log messages.
 
 
@@ -506,14 +508,12 @@ The outside of `with` block, the `_client` will be automatically be disconnect a
 
 ## Todo and Next...
 
-* support the missing commands, `auth`, etc.
+* support the missing command, `auth`, etc.
 * support various environment, Django, flask, etc.
 
 
 ## Participate Developing
 
 Please share where and how you are using the `serf-python`.
-
-
 
 

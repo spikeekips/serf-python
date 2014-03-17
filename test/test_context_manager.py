@@ -1,7 +1,7 @@
-import serf
+from _base import FakeClient, FakeConnection
 
 
-class FakeClient (serf.Client, ) :
+class FakeClient (FakeClient, ) :
     is_connected = False
     is_disconnected = False
 
@@ -16,7 +16,7 @@ class FakeClient (serf.Client, ) :
         return
 
 
-class FakeConnection (serf.Connection, ) :
+class FakeConnection (FakeConnection, ) :
     connection = True
 
     def connect (self, *a, **kw) :

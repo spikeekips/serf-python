@@ -9,31 +9,36 @@ from . import constant
 log = logging.getLogger('serf-rpc-client', )
 
 
+def when_connection_lost (func, ) :
+    def w (self, *a, **kw) :
+        try :
+            return func(self, *a, **kw)
+        except _exceptions.Disconnected, e :
+            self.run_callback('disconnected', )
+
+            raise e
+        except _exceptions.ConnectionLost, e :
+            self.run_callback('connection_lost', )
+
+            raise e
+
+    return w
+
+
 class Connection (object, ) :
-    def when_connection_lost (func, ) :
-        def w (self, *a, **kw) :
-            try :
-                return func(self, *a, **kw)
-            except _exceptions.Disconnected, e :
-                self.run_callback('disconnected', )
-
-                raise e
-            except _exceptions.ConnectionLost, e :
-                self.run_callback('connection_lost', )
-
-                raise e
-
-        return w
-
     _callbacks = dict(
             connection_lost=list(),
             disconnected=list(),
         )
 
-    def __init__ (self, hosts=None, timeout=constant.DEFAULT_TIMEOUT, auto_reconnect=False, ) :
+    def __init__ (self,
+                    hosts=None,
+                    timeout=constant.DEFAULT_TIMEOUT,
+                    auto_reconnect=False,
+                ) :
         assert type(hosts) in (list, tuple, )
 
-        log.debug('will connect to %s' % hosts, )
+        log.info('will connect to %s' % hosts, )
 
         self.members = hosts[:]
         self._timeout = timeout
@@ -95,7 +100,6 @@ class Connection (object, ) :
     @when_connection_lost
     def _set_timeout (self, t, ) :
         self._timeout = t
-        #self.connection.settimeout(float(self._timeout) if self._timeout else None, )
 
         return
 
@@ -120,7 +124,7 @@ class Connection (object, ) :
             _n = 0
             while _n < constant.CONNECTION_RETRY :
                 _sleep = constant.CONNECTION_RETRY_INTERVAL * (_n + 1)
-                log.debug('failed to connect, will retry after %d seconds.' % _sleep, )
+                log.info('failed to connect, will retry after %d seconds.' % _sleep, )
                 time.sleep(_sleep, )
 
                 _sock = self._connection(_members, )
@@ -166,7 +170,7 @@ class Connection (object, ) :
         return _sock
 
     def _connect_node (self, host, port, ) :
-        log.debug('trying to connect to %s:%d' % (host, port, ), )
+        log.info('trying to connect to %s:%d' % (host, port, ), )
 
         _sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         _sock.settimeout(self.timeout, )
@@ -176,7 +180,7 @@ class Connection (object, ) :
         except (socket.timeout, socket.error, ), e :
             raise _exceptions.ConnectionError('%s (%s:%d)' % (e, host, port, ), )
 
-        log.debug('connected to %s:%d' % (host, port, ), )
+        log.info('connected to %s:%d' % (host, port, ), )
 
         return _sock
 
@@ -191,7 +195,7 @@ class Connection (object, ) :
             return
 
         _host, _port = self._conn.getpeername()
-        log.debug('trying to disconnect connection of %s:%d' % (_host, _port, ), )
+        log.info('trying to disconnect connection of %s:%d' % (_host, _port, ), )
 
         try :
             self._conn.close()
@@ -217,7 +221,7 @@ class Connection (object, ) :
                 break
 
         self.just_connected = False
-        #log.debug('> send data: %s' % ((data, ), ), )
+        log.debug('> %s' % ((data, ), ), )
 
         return
 
@@ -230,11 +234,13 @@ class Connection (object, ) :
         try :
             self.connection.settimeout(float(self.timeout) if self.timeout else None, )
             _data = self.connection.recv(buflen, )
-            #log.debug('> got data: %s' % ((_data, ), ), )
+            log.debug('< %s' % ((_data, ), ), )
             if not _data :
                 raise
         except KeyboardInterrupt :
             raise
+        except socket.timeout, e :
+            raise _exceptions.Disconnected(e, )
         except :
             if self.disconnected :
                 raise _exceptions.Disconnected('disconnected', )
