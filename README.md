@@ -1,7 +1,7 @@
 # serf client for python [![Build Status](https://travis-ci.org/spikeekips/serf-python.png?branch=master)](https://travis-ci.org/spikeekips/serf-python)
 
 
-`serf-python` is the client for `serf` for python(python3.x not yet).
+`serf-python` is the python client for `serf` (python3.x not yet).
 
 `serf` is the simple and lightweight clustering software, you can easily create the cluster for your own application. For more details on `serf`, please visit, http://www.serfdom.io/ . `serf` is still in early stage of development, but has already the necessary features for production environment.
 
@@ -28,6 +28,7 @@ $ python setup.py install
 `serf` provides the commands to communicate with `serf` agent thru *RPC*, based on `msgpack`. Naturally `serf-python` use the *RPC* protocol. `serf-python` supports these `serf` commands,
 
 * handshake
+* auth
 * event
 * force-leave
 * join
@@ -39,9 +40,9 @@ $ python setup.py install
 * query
 * respond
 
-`serf` provides some more commands like `auth`, these will be supported as soon as possible. :) You can find the all the supported commands in http://www.serfdom.io/docs/agent/rpc.html .
+~~`serf` provides some more commands like `auth`, these will be supported as soon as possible. :)~~ `serf-python` is supporting all the available commands of `serf`, you can find the all the supported commands in http://www.serfdom.io/docs/agent/rpc.html .
 
-Each command has it's own arguments, which are described in RPC command page http://www.serfdom.io/docs/agent/rpc.html . `serf-python` exactly follow these argument rules, so you can use the same arguments with the arguments of RPC commands in `serf`.
+Each command has it's own arguments, which are described in *RPC* command page http://www.serfdom.io/docs/agent/rpc.html . `serf-python` exactly follows naming and rules of these arguments, including case-sensitive, so you can use the same arguments of the *RPC* commands in `serf`.
 
 
 ### Basic Usage
@@ -194,6 +195,45 @@ You can bypass the `handshake` command for convenience, this is safe and easy wa
 >>> _responses = _client.members().request()
 ```
 
+
+#### auth
+
+```python
+>>> _responses = _client.auth(AuthKey='valid-authkey', ).request()
+>>> _responses
+[
+    <ResponseHandshake: <RequestHandshake: handshake, 0, {'Version': 1}>, {'Seq': 0, 'Error': ''}>,
+    <ResponseAuth: <RequestAuth: auth, 1, {'AuthKey': 'valid-authkey'}>, {'Seq': 1, 'Error': ''}>
+]
+>>> _responses[1].seq
+1
+>>> _responses[1].error
+''
+>>> _responses[1].header
+{'Error': '', 'Seq': 1}
+>>> _responses[1].body
+None
+```
+
+If error occured, it will raise `serf.AuthenticationError`.
+
+```python
+>>> _responses = _client.auth(AuthKey='bad-authkey', ).request()
+Traceback (most recent call last):
+...
+serf.AuthenticationError: failed to authed, ('127.0.0.1', 7374, {}).
+```
+
+You can set the `AuthKey` in hosts url, and then you can ommit this `auth` command like `handshake`.
+
+```python
+>>> _client = serf.Client('serf://127.0.0.1:7373?AuthKey=valid-authkey', )
+>>> _responses = _client.members().request()
+```
+
+See below in this page about the hosts url.
+
+
 #### event
 
 ```python
@@ -216,8 +256,7 @@ None
 
 > NOTE:
 >
-> &nbsp;&nbsp;&nbsp;&nbsp;In `serf`, the payload size has limitation, you can send event message up to 1KB, see 'Custom Event Limitations' section in http://www.serfdom.io/intro/getting-started/user-events.html .
-> To manually tune the payload size limit, see `serf.constant.PAYLOAD_SIZE_LIMIT`.
+> &nbsp;&nbsp;&nbsp;&nbsp;In `serf`, the payload size has limitation, you can send event message up to 1KB, see 'Custom Event Limitations' section in http://www.serfdom.io/intro/getting-started/user-events.html . Manually tune the payload size limit, see `serf.constant.PAYLOAD_SIZE_LIMIT`.
 
 
 #### join
@@ -376,7 +415,7 @@ You can filter the stream event using `Type`, for details, see stream section in
 
 ```python
 >>> def _callback_monitor (response, ) :
-..      print response
+...      print response
 
 >>> _client.monitor(LogLevel='DEBUG', ).add_callback(_callback_monitor, ).request()
 ```
@@ -506,9 +545,36 @@ Without `wait=True`, it will just close the connection before sending requests.
 The outside of `with` block, the `_client` will be automatically be disconnect after getting response for `members`.
 
 
+### Host URL
+
+To connect to the serf agent, you need to set the host url in the `Client` like this,
+
+```python
+>>> serf.Client()
+```
+
+This will connect to the default *RPC* host, `127.0.0.1` and port, `7373`.
+
+```python
+>>> serf.Client('127.0.0.1:7373,127.0.0.1:7374', )
+```
+
+This will connect to the `127.0.0.1:7373` at first, if it is failed, try to the next one, `127.0.0.1:7374`.
+
+```python
+>>> serf.Client('serf://127.0.0.1:7373?AuthKey=valid-authkey', )
+```
+
+If your agent needs *RPC* `auth_token`, you can set the `AuthKey` in the host url. As you see, this is valid URI format.
+
+```
+serf://<host>:<port>?AuthKey=<auth key>
+```
+
+
 ## Todo and Next...
 
-* support the missing command, `auth`, etc.
+* ~~support the missing command, `auth`, etc.~~
 * support various environment, Django, flask, etc.
 
 

@@ -1,5 +1,4 @@
 import serf
-from serf import _exceptions
 
 
 class FakeClient (serf.Client, ) :
@@ -36,11 +35,16 @@ class FakeConnection (serf.Connection, ) :
 
         self._data = list()
 
-    def _connect_node (self, host, port, ) :
+    def _connect_node (self, host, port, **queries) :
         _socket = FakeSocket()
         if self.socket_data :
             _socket.data_received.extend(list(self.socket_data), )
 
         return _socket
+
+    def disconnect (self, ) :
+        self._conn = None
+
+        return super(FakeConnection, self).disconnect()
 
 

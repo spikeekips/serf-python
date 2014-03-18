@@ -1,41 +1,21 @@
-from _base import FakeClient, FakeConnection
+import serf
+from _base import FakeConnection
 
 
-class FakeClient (FakeClient, ) :
-    is_connected = False
-    is_disconnected = False
-
-    @property
-    def is_connected (self, ) :
-        return bool(self._conn.connection)
-
-    def disconnect (self, *a, **kw) :
-        self._conn.connection = False
-        self.is_disconnected = True
-
-        return
-
-
-class FakeConnection (FakeConnection, ) :
-    connection = True
-
-    def connect (self, *a, **kw) :
-        pass
-
-    def disconnect (self, *a, **kw) :
-        pass
+class HandshakeFakeConnection (FakeConnection, ) :
+    socket_data = (
+            '\x82\xa5Error\xa0\xa3Seq\x00',
+        )
 
 
 def test_support_context_manager () :
-    _client = FakeClient(connection_class=FakeConnection, )
+    _client = serf.Client(connection_class=HandshakeFakeConnection, )
     with _client :
-        assert _client.is_connected
-        assert not _client.is_disconnected
+        assert not _client._conn.disconnected
 
         _client.handshake()
         _client.request()
 
-    assert not _client.is_connected
-    assert _client.is_disconnected
+    assert _client._conn.disconnected
 
 

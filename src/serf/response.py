@@ -77,7 +77,10 @@ class ResponseJoin (ResponseWithBody, ) :
 
     @property
     def is_success (self, ) :
-        if not super(ResponseJoin, self).is_success or type(self.body) not in (dict, ) :
+        if self.error :
+            return False
+
+        if type(self.body) not in (dict, ) :
             return False
 
         return self.body.get('Num', 0, ) > 0

@@ -67,3 +67,24 @@ def test_response_members () :
     _client.members().add_callback(_callback, ).request()
 
 
+class MembersFakeConnectionGotError (FakeConnection, ) :
+    socket_data = (
+            '\x82\xa5Error\xa0\xa3Seq\x00',
+            '\x82\xa5Error\xb7Authentication required\xa3Seq\x01',
+            '\x82\xa5Error\xa0\xa3Seq\x01\x81\xa7Members\x92\x8b\xa4Addr\x94\x7f\x00\x00\x01\xabDelegateMin\x02\xabProtocolCur\x02\xabProtocolMax\x02\xa4Name\xa5node0\xa6Status\xa5alive\xabDelegateCur\x04\xa4Tags\x81\xa4role\xabtest-server\xabProtocolMin\x01\xa4Port\xcd\x1e\xdc\xabDelegateMax\x04\x8b\xa4Addr\x94\x7f\x00\x00\x01\xabDelegateMin\x02\xabProtocolCur\x02\xabProtocolMax\x02\xa4Name\xa5node1\xa6Status\xa7leaving\xabDelegateCur\x04\xa4Tags\x80\xabProtocolMin\x01\xa4Port\xcd\x1e\xdd\xabDelegateMax\x04',
+        )
+
+
+def test_response_members_got_error () :
+    _client = serf.Client(connection_class=MembersFakeConnectionGotError, )
+
+    def _callback (response, ) :
+        assert response.request.command == 'members'
+        assert response.error
+        assert not response.is_success
+        assert response.body is None
+        assert response.seq == 1
+
+    _client.members().add_callback(_callback, ).request()
+
+

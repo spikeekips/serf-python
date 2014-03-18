@@ -23,7 +23,7 @@ class FunctionCommandCall (object, ) :
 class BaseRequest (object ) :
     command = None
     command_translated = None
-    need_watchful = False
+    need_watching = False
     force_watchful = False
 
     must_be_argument = tuple()
@@ -111,8 +111,11 @@ class BaseRequest (object ) :
                 self.body,
             )
 
-    def add_callback (self, *callbacks) :
-        self.callbacks.extend(callbacks)
+    def add_callback (self, *callbacks, **kw) :
+        _n = kw.get('pos', len(self.callbacks, ), )
+        for i in callbacks :
+            self.callbacks.insert(_n, i, )
+            _n += 1
 
         return self
 
@@ -129,6 +132,23 @@ class RequestHandshake (BaseRequest, ) :
             self.body['Version'] = client.ipc_version
 
         super(RequestHandshake, self).do_check(client, )
+
+        return
+
+
+class RequestAuth (BaseRequest, ) :
+    """
+        {"AuthKey": "my-secret-auth-token"}
+    """
+    must_be_argument = (
+            'AuthKey',
+        )
+
+    def do_check (self, client, ) :
+        super(RequestAuth, self).do_check(client, )
+
+        if type(self.body.get('AuthKey', ), ) not in (str, unicode, ) :
+            raise _exceptions.InvalidRequest('invalid request, `AuthKey` must be str.', )
 
         return
 
@@ -174,7 +194,7 @@ class RequestStream (BaseRequest, ) :
     """
         {"Type": "member-join,user:deploy"}`
     """
-    need_watchful = True
+    need_watching = True
     must_be_argument = (
             'Type',
         )
@@ -220,7 +240,7 @@ class RequestMonitor (BaseRequest, ) :
     """
         {"LogLevel": "DEBUG"}
     """
-    need_watchful = True
+    need_watching = True
     must_be_argument = (
             'LogLevel',
         )

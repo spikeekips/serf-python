@@ -1,4 +1,7 @@
 import socket
+import urlparse
+import urllib
+import string
 import time
 import logging
 
@@ -7,6 +10,59 @@ from . import constant
 
 
 log = logging.getLogger('serf-rpc-client', )
+
+
+AVAILABLE_HOST_URI_QUERY_KEYS = set([
+        'AuthKey',
+    ], )
+
+
+def parse_host (h, ) :
+    _hosts = list()
+    for i in filter(string.strip, h.split(','), ) :
+        _h = _parse_host(i, )
+        if not _h :
+            continue
+
+        _hosts.append(tuple(_h, ), )
+
+    return _hosts
+
+
+def _parse_host (h, ) :
+    if not h.startswith('serf://') :
+        h = 'serf://%s' % h
+    
+    _parsed = urlparse.urlparse(h, )
+    _host = map(
+            lambda x : None if x in ('', -1, ) else x,
+            urllib.splitnport(_parsed.netloc, defport=7373, ),
+        )
+    
+    if not _host[0] and not _host[1] :
+        raise _exceptions.InvalidHostURL('invalid host url, `%s`.' % h, )
+    
+    if not _host[0] :
+        _host[0] = constant.DEFAULT_HOST
+    
+    if not _host[1] :
+        _host[1] = constant.DEFAULT_PORT
+    
+    _queries = dict()
+    if _parsed.query :
+        _queries = dict(map(
+                urllib.splitvalue,
+                filter(string.strip, _parsed.query.split('&'), ),
+            ), )
+        if set(_queries.keys()) != AVAILABLE_HOST_URI_QUERY_KEYS :
+            raise _exceptions.InvalidHostURL(
+                    'unknown key found, %s' % list(
+                        set(_queries.keys() - AVAILABLE_HOST_URI_QUERY_KEYS), ),
+                )
+    
+    _host.append(_queries, )
+    
+    return _host
 
 
 def when_connection_lost (func, ) :
@@ -44,9 +100,9 @@ class Connection (object, ) :
         self._timeout = timeout
         self._auto_reconnect = auto_reconnect
 
+        self.current_member = None
         self._conn = None
         self._once_connected = False
-        self.just_connected = False
         self.disconnected = True
 
         self._callbacks = self.__class__._callbacks.copy()
@@ -55,7 +111,6 @@ class Connection (object, ) :
 
     def _callback_connection_lost (self, *a, **kw) :
         self._conn = None
-        self.just_connected = False
 
         return
 
@@ -137,9 +192,6 @@ class Connection (object, ) :
             raise _exceptions.ConnectionError(
                         'tried to all the known members, but failed, %s' % _members, )
 
-        if not self.just_connected :
-            self.just_connected = True
-
         if not self._once_connected :
             self._once_connected = True
 
@@ -155,7 +207,8 @@ class Connection (object, ) :
         _members = members[:]
         for _host in _members :
             try :
-                _sock = self._connect_node(*_host)
+                _sock = self._connect_node(*_host[:2], **_host[2])
+                self.current_member = _host
                 break
             except _exceptions.ConnectionError, e :
                 log.error(e, )
@@ -169,7 +222,7 @@ class Connection (object, ) :
 
         return _sock
 
-    def _connect_node (self, host, port, ) :
+    def _connect_node (self, host, port, **queries) :
         log.info('trying to connect to %s:%d' % (host, port, ), )
 
         _sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -220,7 +273,6 @@ class Connection (object, ) :
             else :
                 break
 
-        self.just_connected = False
         log.debug('> %s' % ((data, ), ), )
 
         return

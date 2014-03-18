@@ -23,11 +23,11 @@ def test_request_stream_command () :
     _request = serf.request.BaseRequest()
     _request.command = 'anonymous_command'
 
-    assert not _request.need_watchful
+    assert not _request.need_watching
 
     _request = serf.get_request_class('stream')(Type='*', )
 
-    assert _request.need_watchful
+    assert _request.need_watching
 
 
 def test_request_add_callback_by_state_order () :
@@ -98,8 +98,5 @@ def test_argument_check_unknown_key () :
         _request.check(None, )
 
     assert not _request.is_checked
-
-
-## command request
 
 

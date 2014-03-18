@@ -2,6 +2,7 @@ import logging
 import msgpack
 import threading
 import string
+import urlparse
 import urllib
 
 try :
@@ -32,26 +33,9 @@ class Client (threading.local, ) :
                 ) :
         _hosts = list()
         if not hosts :
-            _hosts = [(constant.DEFAULT_HOST, constant.DEFAULT_PORT, ), ]
+            _hosts = [(constant.DEFAULT_HOST, constant.DEFAULT_PORT, dict(), ), ]
         else :
-            for i in filter(string.strip, hosts.split(','), ) :
-                _host = map(
-                        lambda x : None if x in ('', -1, ) else x,
-                        urllib.splitnport(i, defport=7373, ),
-                    )
-                if not _host[0] and not _host[1] :
-                    continue
-
-                if not _host[0] :
-                    _host[0] = constant.DEFAULT_HOST
-
-                if not _host[1] :
-                    _host[1] = constant.DEFAULT_PORT
-
-                if _host in _hosts :
-                    continue
-
-                _hosts.append(tuple(_host, ), )
+            _hosts = connection.parse_host(hosts, )
 
             if not _hosts :
                 raise ValueError('no `hosts` found.', )
@@ -74,6 +58,8 @@ class Client (threading.local, ) :
 
     def _initialize (self, ) :
         self.seq = 0
+        self.is_handshaked = False
+        self.is_authed = False
         self._request_handlers = dict()
         self._received_headers = OrderedDict()
         self._requests_sequence = list()
@@ -93,6 +79,8 @@ class Client (threading.local, ) :
 
     def _callback_lost_connection (self, connection, ) :
         self.seq = 0
+        self.is_handshaked = False
+        self.is_authed = False
         self._request_handlers = dict()
         self._received_headers.clear()
 
@@ -135,6 +123,8 @@ class Client (threading.local, ) :
         return
 
     def _callback_handshake (self, response, ) :
+        self.is_handshaked = response.is_success
+
         if not response.is_success :
             raise _exceptions.RpcError('failed to call `handshake`, %s.' % response.error, )
 
@@ -142,13 +132,17 @@ class Client (threading.local, ) :
 
         return
 
-    def _request_handshake (self, ) :
-        _request = self._get_request_class('handshake', )(
-                Version=self.ipc_version,
-            ).check(self, ).add_callback(self._callback_handshake, )
+    def _callback_auth (self, response, ) :
+        self.is_authed = response.is_success
 
-        self._request(_request, )
-        return self._get_response().callback().is_success
+        if not response.is_success :
+            raise _exceptions.AuthenticationError(
+                    'failed to authed, %s.' % (self._conn.current_member, ),
+                )
+
+        log.info('successfully authed', )
+
+        return
 
     def request_by_request (self, request, ) :
         # remove the duplicated command, unperiodically `serf` rpc server miss
@@ -177,23 +171,16 @@ class Client (threading.local, ) :
             _requests = self._requests_sequence[:]
             self._requests_sequence = list()
 
-        _missing_handshake = _requests[0].command != 'handshake'
+        _requests = self._check_request_handshake(_requests, )
+        _requests = self._check_request_auth(_requests, )
 
         _stream_requests = list()
-
         _requests_sequence =  _requests[:]
         for i in _requests_sequence :
             # check whether the connection is still available or not.
             self._conn.connection
 
-            if not self._conn.just_connected and i.command == 'handshake' :
-                _requests.remove(i, )
-                continue
-
-            if self._conn.just_connected and _missing_handshake :
-                self._request_handshake()
-
-            if watch and i.need_watchful :
+            if watch and i.need_watching :
                 _stream_requests.append(i, )
 
             if i.force_watchful :
@@ -214,6 +201,52 @@ class Client (threading.local, ) :
             )
 
         return _responses
+
+    def _check_request_handshake (self, requests, ) :
+        if self.is_handshaked :
+            return requests
+
+        if not requests[0].command != 'handshake' :
+            if self._callback_handshake not in requests[0].callbacks :
+                requests[0].add_callback(self._callback_handshake, pos=0, )
+
+            return requests
+
+        _request = self._get_request_class('handshake', )(
+                Version=self.ipc_version,
+            ).check(self, ).add_callback(self._callback_handshake, )
+        requests.insert(0, _request, )
+
+        return requests
+
+    def _check_request_auth (self, requests, ) :
+        if self.is_authed :
+            return requests
+
+        self._conn.connection
+
+        # found auth command in requests
+        if bool(filter(lambda x : x.command == 'auth', requests, ), ) :
+            for i in requests :
+                if i.command != 'auth' :
+                    continue
+
+                if self._callback_auth not in i.callbacks :
+                    i.add_callback(self._callback_auth, pos=0, )
+
+            return requests
+
+        if 'AuthKey' in self._conn.current_member[2] :
+            _request = self._get_request_class('auth', )(
+                    AuthKey=self._conn.current_member[2].get('AuthKey'),
+                ).check(self, ).add_callback(self._callback_auth, )
+
+            requests.insert(
+                    1 if requests[0].command == 'handshake' else 0,
+                    _request,
+                )
+
+        return requests
 
     def watch (self, timeout=None, ) :
         return self.request(watch=True, timeout=timeout, )
@@ -300,7 +333,7 @@ class Client (threading.local, ) :
                 _parsed = self._unpacker.next()
                 try :
                     _response = self._handle_header(_parsed, )
-                    if not _response.has_body :
+                    if _parsed.get('Error', ) or not _response.has_body :
                         break
                 except _exceptions.ThisIsNotHeader :
                     _body = _parsed

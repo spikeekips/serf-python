@@ -1,3 +1,9 @@
+class InvalidHostURL (Exception, ) : pass
+
+
+class AuthenticationError (Exception, ) : pass
+
+
 class UncheckedRequest (Exception, ) : pass
 
 

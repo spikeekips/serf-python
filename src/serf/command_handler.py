@@ -1,8 +1,9 @@
 import string
 
 from .request import (
-        RequestEvent,
         RequestHandshake,
+        RequestAuth,
+        RequestEvent,
         RequestJoin,
         RequestLeave,
         RequestForceLeave,
@@ -26,6 +27,7 @@ from .response import (
 
 _REQUEST_HANDLER = {
         'handshake': RequestHandshake,
+        'auth': RequestAuth,
         'event': RequestEvent,
         'force_leave': RequestForceLeave,
         'join': RequestJoin,
@@ -42,6 +44,7 @@ _REQUEST_HANDLER = {
 
 _RESPONSE_HANDLER = {
         'handshake': ResponseWithoutBody,
+        'auth': ResponseWithoutBody,
         'event': ResponseWithoutBody,
         'force_leave': ResponseWithoutBody,
         'join': ResponseJoin,
