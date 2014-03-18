@@ -206,7 +206,7 @@ class Client (threading.local, ) :
         if self.is_handshaked :
             return requests
 
-        if not requests[0].command != 'handshake' :
+        if requests[0].command == 'handshake' :
             if self._callback_handshake not in requests[0].callbacks :
                 requests[0].add_callback(self._callback_handshake, pos=0, )
 
