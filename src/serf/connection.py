@@ -33,7 +33,18 @@ def _parse_host (h, ) :
     if not h.startswith('serf://') :
         h = 'serf://%s' % h
     
-    _parsed = urlparse.urlparse(h, )
+    _parsed = list(urlparse.urlparse(h, ), )
+    if _parsed[0] not in ('serf', ) :
+        raise _exceptions.InvalidHostURL('invalid host url, `%s`.' % h, )
+
+    # the `urlparse` module in `travis-cis` does not understand the
+    # non-standard scheme like `serf'.
+    _parsed[0] = 'http'
+    if not _parsed[2].startswith('/') :
+        _parsed[2] = '/' + _parsed[2]
+
+    _parsed = urlparse.urlparse(urlparse.urlunparse(_parsed, ), )
+
     _host = map(
             lambda x : None if x in ('', -1, ) else x,
             urllib.splitnport(_parsed.netloc, defport=7373, ),
