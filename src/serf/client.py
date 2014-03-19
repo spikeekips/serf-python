@@ -126,9 +126,9 @@ class Client (threading.local, ) :
         self.is_handshaked = response.is_success
 
         if not response.is_success :
-            raise _exceptions.RpcError('failed to call `handshake`, %s.' % response.error, )
-
-        log.info('successfully handshaked', )
+            log.warning(response.error, )
+        else :
+            log.info('successfully handshaked', )
 
         return
 
