@@ -11,7 +11,7 @@ if sys.version_info < (2, 7, 0, ) :
 
 setup(
     name='serf-python',
-    version='0.1',
+    version='0.2',
     description='serf client for python',
     long_description="""
 For more details, please see https://github.com/spikeekips/serf-python .
