@@ -369,7 +369,7 @@ class RequestRespond (BaseRequest, ) :
 
         if type(self.body.get('ID', ), ) not in (int, long, ) :
             raise _exceptions.InvalidRequest(
-                    'invalid request, `Existing` must be int or long.', )
+                    'invalid request, `ID` must be int or long.', )
 
         # check payload
         self._is_checked = True
