@@ -30,6 +30,7 @@ class Client (threading.local, ) :
                     ipc_version=constant.DEFAULT_IPC_VERSION,
                     auto_reconnect=False,
                     connection_class=None,
+                    stop_reconnect_nth_failed=constant.CONNECTION_RETRY,
                 ) :
         _hosts = list()
         if not hosts :
@@ -43,7 +44,11 @@ class Client (threading.local, ) :
         if connection_class is None :
             connection_class = connection.Connection
 
-        self._conn = connection_class(_hosts, auto_reconnect=auto_reconnect, )
+        self._conn = connection_class(
+                _hosts,
+                auto_reconnect=auto_reconnect,
+                stop_reconnect_nth_failed=stop_reconnect_nth_failed,
+            )
         self._conn.add_callback(connection_lost=self._callback_lost_connection, )
         self._conn.add_callback(disconnected=self._callback_disconnected, )
 

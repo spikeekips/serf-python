@@ -102,6 +102,7 @@ class Connection (object, ) :
                     hosts=None,
                     timeout=constant.DEFAULT_TIMEOUT,
                     auto_reconnect=False,
+                    stop_reconnect_nth_failed=constant.CONNECTION_RETRY,
                 ) :
         assert type(hosts) in (list, tuple, )
 
@@ -110,6 +111,7 @@ class Connection (object, ) :
         self.members = hosts[:]
         self._timeout = timeout
         self._auto_reconnect = auto_reconnect
+        self._stop_reconnect_nth_failed = stop_reconnect_nth_failed
 
         self.current_member = None
         self._conn = None
@@ -119,6 +121,7 @@ class Connection (object, ) :
         self._callbacks = self.__class__._callbacks.copy()
         self.add_callback(connection_lost=self._callback_connection_lost, )
         self.add_callback(disconnected=self._callback_disconnected, )
+
 
     def _callback_connection_lost (self, *a, **kw) :
         self._conn = None
@@ -188,7 +191,13 @@ class Connection (object, ) :
 
         if _sock is None and self._once_connected and self._auto_reconnect :
             _n = 0
-            while _n < constant.CONNECTION_RETRY :
+
+            if self._stop_reconnect_nth_failed :
+                _wait_until = lambda x : x < self._stop_reconnect_nth_failed
+            else :
+                _wait_until = lambda x : True
+
+            while _wait_until(_n, ):
                 _sleep = constant.CONNECTION_RETRY_INTERVAL * (_n + 1)
                 log.info('failed to connect, will retry after %d seconds.' % _sleep, )
                 time.sleep(_sleep, )
@@ -197,7 +206,8 @@ class Connection (object, ) :
                 if _sock :
                     break
 
-                _n += 1
+                if _n < 5 :
+                    _n += 1
 
         if _sock is None :
             raise _exceptions.ConnectionError(
