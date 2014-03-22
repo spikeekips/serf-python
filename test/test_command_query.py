@@ -107,3 +107,82 @@ def test_response_query () :
         assert _responses[_n].body == i
 
 
+class QueryFakeConnectionInvalidResponse (QueryFakeConnection, ) :
+    responses = (
+                {'Type': 'ack', 'From': 'node0', 'Payload': None},
+                {'Type': 'response', 'From': '', 'Payload': 'this is payload of `response-me` query event2014-03-18T00:52:15.993442'},
+                {'Type': 'ack', 'From': 'node1', 'Payload': None},
+                {'Type': 'done', 'From': '', 'Payload': None},
+        )
+
+    socket_data = [
+            '\x82\xa5Error\xa0\xa3Seq\x00',
+            '\x82\xa5Error\xa0\xa3Seq\x01',
+        ]
+
+    for i in responses :
+        socket_data.append('\x82\xa5Error\xa0\xa3Seq\x01', )
+        socket_data.append(msgpack.packb(i), )
+
+    socket_data.append('END', )
+
+
+def test_response_query_invalid_response () :
+    _client = serf.Client(connection_class=QueryFakeConnectionInvalidResponse, )
+
+    _body = dict(
+            RequestAck=True,
+            Timeout=0,
+            Name='response-me',
+            Payload='this is payload of `response-me` query event',
+        )
+
+    _responses_all = _client.query(**_body).watch()
+
+    for i in _responses_all :
+        if i.request.command not in ('query', ) :
+            continue
+
+        assert i.body.get('Type', ) not in ('response', )
+
+
+class QueryFakeConnectionInvalidAck (QueryFakeConnection, ) :
+    responses = (
+                {'Type': 'ack', 'From': '', 'Payload': None},
+                {'Type': 'response', 'From': 'node0', 'Payload': 'this is payload of `response-me` query event2014-03-18T00:52:15.993442'},
+                {'Type': 'ack', 'From': 'node1', 'Payload': None},
+                {'Type': 'done', 'From': '', 'Payload': None},
+        )
+
+    socket_data = [
+            '\x82\xa5Error\xa0\xa3Seq\x00',
+            '\x82\xa5Error\xa0\xa3Seq\x01',
+        ]
+
+    for i in responses :
+        socket_data.append('\x82\xa5Error\xa0\xa3Seq\x01', )
+        socket_data.append(msgpack.packb(i), )
+
+    socket_data.append('END', )
+
+
+def test_response_query_invalid_ack () :
+    _client = serf.Client(connection_class=QueryFakeConnectionInvalidAck, )
+
+    _body = dict(
+            RequestAck=True,
+            Timeout=0,
+            Name='response-me',
+            Payload='this is payload of `response-me` query event',
+        )
+
+    _responses_all = _client.query(**_body).watch()
+
+    for i in _responses_all :
+        if i.request.command not in ('query', ) :
+            continue
+
+        if i.body.get('Type', ) in ('ack', ) :
+            assert i.body.get('From', ) != 'node0'
+
+

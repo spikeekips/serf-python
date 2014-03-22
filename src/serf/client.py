@@ -278,6 +278,9 @@ class Client (threading.local, ) :
             except _exceptions.Disconnected, e :
                 log.info('disconnected: %s' % e, )
                 return _responses
+            except _exceptions.InvalidResponse, e :
+                log.error(e, )
+                continue
 
             _response_callbacked =_response.callback()
             if _response_callbacked :
@@ -341,6 +344,8 @@ class Client (threading.local, ) :
                     if _parsed.get('Error', ) or not _response.has_body :
                         break
                 except _exceptions.ThisIsNotHeader :
+                    if not self._received_headers :
+                        continue
                     _body = _parsed
                     break
                 except _exceptions.ThisIsNotValidHeader :
@@ -353,6 +358,7 @@ class Client (threading.local, ) :
         self._received_headers.popitem()
 
         _response.body = _body
+
         return _response
 
 

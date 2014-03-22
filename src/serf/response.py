@@ -1,6 +1,8 @@
 import socket
 import logging
 
+from . import _exceptions
+
 
 log = logging.getLogger('serf-rpc-client', )
 
@@ -142,4 +144,12 @@ class ResponseQuery (ResponseWithBody, ) :
 
         return self
 
+    def _parse_body (self, body, ) :
+        if body and body.get('Type') in ('ack', ) and not body.get('From', ) :
+            raise _exceptions.InvalidResponse('query `ack` response must have `From`.')
+
+        if body and body.get('Type') in ('response', ) and not body.get('From', ) :
+            raise _exceptions.InvalidResponse('query `response` response must have `From`.')
+
+        return body
 

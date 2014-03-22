@@ -1,6 +1,8 @@
 import serf
 import pytest
 
+from _base import FakeConnection
+
 
 ## requests
 
@@ -98,5 +100,36 @@ def test_argument_check_unknown_key () :
         _request.check(None, )
 
     assert not _request.is_checked
+
+
+class FakeConnectionAbnormal (FakeConnection, ) :
+    socket_data = (
+            '\x81\xa3Num\x01', 
+            '\x82\xa5Error\xa0\xa3Seq\x00',
+            '\x82\xa5Error\xa0\xa3Seq\x01',
+        )
+
+
+def test_response_auth_failed () :
+    """
+    when the body first received.
+    """
+
+    _client = serf.Client(connection_class=FakeConnectionAbnormal, )
+
+    def _callback (response, ) :
+        assert response.request.command == 'event'
+        assert not response.error
+        assert response.is_success
+        assert response.body is None
+        assert response.seq == 1
+
+    _body = dict(
+            Name='anonymous-event',
+            Payload='payload',
+        )
+
+    _responses = _client.event(**_body).add_callback(_callback, ).request()
+    assert len(_responses) == 2
 
 

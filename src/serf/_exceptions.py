@@ -10,6 +10,9 @@ class UncheckedRequest (Exception, ) : pass
 class InvalidRequest (Exception, ) : pass
 
 
+class InvalidResponse (Exception, ) : pass
+
+
 class Disconnected (Exception, ) : pass
 
 
