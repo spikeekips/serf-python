@@ -31,3 +31,6 @@ class ThisIsNotHeader (Exception, ) : pass
 class ThisIsNotValidHeader (Exception, ) : pass
 
 
+class StopReceiveData (Exception, ) : pass
+
+

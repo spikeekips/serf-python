@@ -282,7 +282,11 @@ class Client (threading.local, ) :
                 log.error(e, )
                 continue
 
-            _response_callbacked =_response.callback()
+            try :
+                _response_callbacked =_response.callback()
+            except _exceptions.StopReceiveData :
+                break
+
             if _response_callbacked :
                 _responses.append(_response, )
 

@@ -535,6 +535,25 @@ If you disconnect after getting the responses,
 Without `wait=True`, it will just close the connection before sending requests.
 
 
+### Stop `watch`ing
+
+Basically `watch` will keep receiving response until you manually disconnect or exception is occured. If you want to stop `watch`ing in specific condition, you can raise `_exception.StopReceiveData`.
+
+```python
+>>> def _callback_stream (response, ) :
+...     print '> got stream response.'
+... 
+...     if response.body :
+...         if response.body.get('Event') in ('query', ) :
+...             _client.stop(Stop=response.seq, )
+...             raise _exception.StopReceiveData
+... 
+>>> _client.stream(Type='*', ).add_callback(_callback_stream, ).watch()
+```
+
+This will stop watching when `query` event is received, but `stop` request will not send automatically.
+
+
 ### Use `with` Statement For One Time Request
 
 ```python
