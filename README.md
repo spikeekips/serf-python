@@ -19,9 +19,6 @@ or, from source.
 ```sh
 $ git clone git@github.com:spikeekips/serf-python.git
 $ cd serf-python
-
-$ git checkout v0.1
-
 $ python setup.py install
 ```
 
