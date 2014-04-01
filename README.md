@@ -19,9 +19,6 @@ or, from source.
 ```sh
 $ git clone git@github.com:spikeekips/serf-python.git
 $ cd serf-python
-
-$ git checkout v0.1
-
 $ python setup.py install
 ```
 
@@ -559,7 +556,7 @@ This will stop watching when `query` event is received, but `stop` request will 
 
 ```python
 >>> with serf.Client('127.0.0.1:7373,127.0.0.1:7374', ) as _client :
-...     _client.members().request
+...     _client.members().request()
 ```
 
 The outside of `with` block, the `_client` will be automatically be disconnect after getting response for `members`.
