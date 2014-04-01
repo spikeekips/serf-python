@@ -387,13 +387,12 @@ You can find the available `Status` at https://github.com/hashicorp/serf/blob/ma
 ...
 ...     print 'events:'
 ...     pprint.pprint(response.body, )
-
-
+...     
 ...     return
 
->>> _client.stream(Type='*', ).watch()
+>>> _client.stream(Type='*', ).add_callback(_callback_stream, ).watch()
 >>> # or
->>> _client.stream(Type='*', ).request()
+>>> _client.stream(Type='*', ).add_callback(_callback_stream, )..request()
 ```
 
 When the new event is occured, you will get these kind of messages,
