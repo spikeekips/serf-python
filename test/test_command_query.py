@@ -81,7 +81,9 @@ def test_response_query () :
         assert response.is_success
         assert response.body is not None
         assert response.seq == 1
+        assert response.body == QueryFakeConnection.responses[len(_responses)]
 
+        _responses.append(response)
         return
 
 
@@ -94,17 +96,9 @@ def test_response_query () :
             Payload='this is payload of `response-me` query event',
         )
 
-    _responses_all = _client.query(**_body).add_callback(_callback, ).watch()
-
     _responses = list()
-    for i in _responses_all :
-        if i.request.command not in ('query', ) :
-            continue
 
-        _responses.append(i, )
-
-    for _n, i in enumerate(QueryFakeConnection.responses) :
-        assert _responses[_n].body == i
+    _client.query(**_body).add_callback(_callback, ).watch()
 
 
 class QueryFakeConnectionInvalidResponse (QueryFakeConnection, ) :

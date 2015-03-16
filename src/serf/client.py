@@ -287,7 +287,7 @@ class Client (threading.local, ) :
             except _exceptions.StopReceiveData :
                 break
 
-            if _response_callbacked :
+            if not _response_callbacked :
                 _responses.append(_response, )
 
             if not _response.has_more_responses :

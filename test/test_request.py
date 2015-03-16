@@ -129,7 +129,6 @@ def test_response_auth_failed () :
             Payload='payload',
         )
 
-    _responses = _client.event(**_body).add_callback(_callback, ).request()
-    assert len(_responses) == 2
+    _client.event(**_body).add_callback(_callback, ).request()
 
 
