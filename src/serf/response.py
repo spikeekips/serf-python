@@ -137,12 +137,11 @@ class ResponseQuery (ResponseWithBody, ) :
     has_more_responses = True
 
     def callback (self, ) :
-        super(ResponseQuery, self).callback()
 
         if self.body.get('Type') in ('done', ) :
             self.has_more_responses = False
 
-        return self
+        return super(ResponseQuery, self).callback()
 
     def _parse_body (self, body, ) :
         if body and body.get('Type') in ('ack', ) and not body.get('From', ) :
