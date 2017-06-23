@@ -153,7 +153,7 @@ For streaming command like `stream` or `monitor`, you can use `watch`. `watch` w
 
 ```python
 >>> def _callback (response, ) :
-...     if not response.is_sucess :
+...     if not response.is_success :
 ...         raise ValueError(response.error, )
 ...
 ...     print response.body
@@ -183,7 +183,7 @@ In `serf` thru *RPC*, you must request the `handshake` command ahead of any othe
 [
     <ResponseHandshake: <RequestHandshake: handshake, 0, {'Version': 1}>, {'Seq': 0, 'Error': ''}>
 ]
->>> _responses[0].is_sucess
+>>> _responses[0].is_success
 True
 ```
 
@@ -456,7 +456,7 @@ or as a `Node` value, you can use the node name, which is the `Name` value in th
 
 ```python
 >>> def _callback_query (response, ) :
-...     if not response.is_sucess :
+...     if not response.is_success :
 ...         raise ValueError(response.error, )
 ...
 ...     print response
@@ -467,7 +467,7 @@ or as a `Node` value, you can use the node name, which is the `Name` value in th
 ...        Payload='this is payload of `response-me` query event',
 ...    ).add_callback(_callback_query, ).request()
 
->>> _response.is_sucess
+>>> _response.is_success
 True
 >>> len(_response)
 3
@@ -485,7 +485,7 @@ In this example, we use `request()`, but `query` command will wait until the `do
 
 ```python
 >>> def _callback_respond (response, ) :
-...     if not response.is_sucess :
+...     if not response.is_success :
 ...         raise ValueError(response.error, )
 ...
 ...     return
@@ -601,3 +601,4 @@ Please share where and how you are using the `serf-python`.
 
 
 # 끝, 終, 头, Fin, End, Ende, Phần cuối, адаг, akhir, конец, son, ចុង, переві́д, oxiri, fund, დაბოლოება
+
