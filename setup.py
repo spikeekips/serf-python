@@ -2,7 +2,7 @@ import sys
 from setuptools import setup
 
 _requires = [
-        'msgpack-python',
+        'msgpack',
     ]
 
 if sys.version_info < (2, 7, 0, ) :
