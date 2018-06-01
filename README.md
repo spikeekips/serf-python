@@ -1,4 +1,4 @@
-# serf client for python [![Build Status](https://travis-ci.org/spikeekips/serf-python.png?branch=master)](https://travis-ci.org/spikeekips/serf-python) [![Latest Version](https://pypip.in/v/serf-python/badge.png)](https://pypi.python.org/pypi/serf-python/)
+# serf client for python [![Build Status](https://travis-ci.org/spikeekips/serf-python.png?branch=master)](https://travis-ci.org/spikeekips/serf-python) [![Latest Version](https://img.shields.io/pypi/v/serf-python.svg)](https://pypi.python.org/pypi/serf-python/)
 
 
 
